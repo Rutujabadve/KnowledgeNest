@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from database import SessionLocal
 from models.course import Course
+from models.enrollment import Enrollment
 
 app = Flask(__name__)
 
@@ -58,6 +59,52 @@ def list_courses():
         return jsonify(courses_list), 200
         
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/courses/<int:course_id>/enroll', methods=['POST'])
+def enroll_in_course(course_id):
+    data = request.get_json()
+    
+    if not data or not data.get('user_id'):
+        return jsonify({"error": "User ID is required"}), 400
+    
+    db = SessionLocal()
+    try:
+        # Check if course exists
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return jsonify({"error": "Course not found"}), 404
+        
+        # Check if already enrolled
+        existing_enrollment = db.query(Enrollment).filter(
+            Enrollment.user_id == data['user_id'],
+            Enrollment.course_id == course_id
+        ).first()
+        
+        if existing_enrollment:
+            return jsonify({"error": "Already enrolled in this course"}), 409
+        
+        # Create enrollment
+        new_enrollment = Enrollment(
+            user_id=data['user_id'],
+            course_id=course_id
+        )
+        
+        db.add(new_enrollment)
+        db.commit()
+        db.refresh(new_enrollment)
+        
+        return jsonify({
+            "id": new_enrollment.id,
+            "user_id": new_enrollment.user_id,
+            "course_id": new_enrollment.course_id,
+            "enrolled_at": new_enrollment.enrolled_at.isoformat() if new_enrollment.enrolled_at else None
+        }), 201
+        
+    except Exception as e:
+        db.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
