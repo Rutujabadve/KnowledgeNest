@@ -1,0 +1,143 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\margl1440\margr1440\vieww29200\viewh18380\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # \uc0\u55358 \u56800  KnowledgeNest \'96 Microservices-Based Online Learning Platform\
+\
+## Overview\
+**KnowledgeNest** is an online learning platform built using **Flask**, **React**, **MySQL**, and **PostgreSQL** in a **microservices architecture**.  \
+It provides **authentication**, **course management**, **enrollment**, **content delivery**, and **reviews**, all connected via a **Flask API Gateway** with **CI/CD pipelines**, **observability**, and **analytics dashboards**.\
+\
+---\
+\
+## \uc0\u55356 \u57303 \u65039  High-Level Architecture\
+\
+                    \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+                    \uc0\u9474       React Frontend     \u9474 \
+                    \uc0\u9474  (Next.js / Redux / Axios)\u9474 \
+                    \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9516 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+                                 \uc0\u9474 \
+                       REST / gRPC / WebSocket\
+                                 \uc0\u9474 \
+                 \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9524 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+                 \uc0\u9474         Flask API Gateway        \u9474 \
+                 \uc0\u9474   (Routing, Auth, Aggregation)   \u9474 \
+                 \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9516 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+             \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9532 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+             \uc0\u9474                  \u9474                              \u9474 \
+    \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9524 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488  \u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9524 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488            \u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9524 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+    \uc0\u9474  Auth Service  \u9474  \u9474  Course Service  \u9474            \u9474  Review Service  \u9474 \
+    \uc0\u9474  Flask + MySQL \u9474  \u9474  Flask + PostgreSQL \u9474         \u9474  Flask + PostgreSQL \u9474 \
+    \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496  \u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496            \u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+             \uc0\u9474                  \u9474                              \u9474 \
+             \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9654  Message Queue / Event Bus \u9664 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+                            (RabbitMQ / Kafka)\
+\
+                  \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+                  \uc0\u9474  Analytics & Dashboard Service\u9474 \
+                  \uc0\u9474   (Flask + Grafana/Prometheus)\u9474 \
+                  \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+\
+                  \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+                  \uc0\u9474  CI/CD (GitHub Actions + AWS) \u9474 \
+                  \uc0\u9492 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9496 \
+\
+---\
+\
+## \uc0\u55357 \u56770 \u65039  Project File & Folder Structure\
+\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 KnowledgeNest/\uc0\u8232 \u9500 \u9472 \u9472  api_gateway/\u8232 \u9474  \u9500 \u9472 \u9472  app.py\u8232 \u9474  \u9500 \u9472 \u9472  routes/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  auth_routes.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  course_routes.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  review_routes.py\u8232 \u9474  \u9500 \u9472 \u9472  utils/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  jwt_manager.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  rate_limiter.py\u8232 \u9474  \u9492 \u9472 \u9472  Dockerfile\
+\uc0\u9500 \u9472 \u9472  services/\u8232 \u9474  \u9500 \u9472 \u9472  auth_service/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  app.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  models/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  user.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  routes/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  login.py\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  register.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  database.py\u8232 \u9474  \u9474  \u9492 \u9472 \u9472  Dockerfile\u8232 \u9474  \u9474 \u8232 \u9474  \u9500 \u9472 \u9472  course_service/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  app.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  models/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  course.py\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  enrollment.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  routes/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  course_crud.py\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  enrollment.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  database.py\u8232 \u9474  \u9474  \u9492 \u9472 \u9472  Dockerfile\u8232 \u9474  \u9474 \u8232 \u9474  \u9500 \u9472 \u9472  review_service/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  app.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  models/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  review.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  routes/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  review_crud.py\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  database.py\u8232 \u9474  \u9474  \u9492 \u9472 \u9472  Dockerfile\
+\uc0\u9500 \u9472 \u9472  frontend/\u8232 \u9474  \u9500 \u9472 \u9472  src/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  components/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  CourseCard.jsx\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  Navbar.jsx\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  ReviewForm.jsx\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  pages/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  Home.jsx\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  Login.jsx\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  Dashboard.jsx\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  store/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  index.js\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  authSlice.js\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  courseSlice.js\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  utils/\u8232 \u9474  \u9474  \u9474  \u9500 \u9472 \u9472  api.js\u8232 \u9474  \u9500 \u9472 \u9472  package.json\u8232 \u9474  \u9492 \u9472 \u9472  Dockerfile\
+\uc0\u9500 \u9472 \u9472  database/\u8232 \u9474  \u9500 \u9472 \u9472  mysql/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  init.sql\u8232 \u9474  \u9500 \u9472 \u9472  postgres/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  schema.sql\
+\uc0\u9500 \u9472 \u9472  analytics/\u8232 \u9474  \u9500 \u9472 \u9472  metrics_collector.py\u8232 \u9474  \u9500 \u9472 \u9472  dashboard/\u8232 \u9474  \u9474  \u9500 \u9472 \u9472  grafana_dashboard.json\u8232 \u9474  \u9492 \u9472 \u9472  Dockerfile\
+\uc0\u9500 \u9472 \u9472  ci_cd/\u8232 \u9474  \u9500 \u9472 \u9472  github-actions.yml\u8232 \u9474  \u9500 \u9472 \u9472  docker-compose.yml\u8232 \u9474  \u9492 \u9472 \u9472  kubernetes/\u8232 \u9474  \u9500 \u9472 \u9472  deployment.yaml\u8232 \u9474  \u9500 \u9472 \u9472  service.yaml\
+\uc0\u9500 \u9472 \u9472  docs/\u8232 \u9474  \u9500 \u9472 \u9472  architecture.md\u8232 \u9474  \u9500 \u9472 \u9472  api_docs.md\
+\uc0\u9492 \u9472 \u9472  README.md\
+\
+---\
+\
+## \uc0\u9881 \u65039  Component Responsibilities\
+\
+| Component | Description |\
+|------------|-------------|\
+| **Frontend (React)** | Provides user interface for authentication, course browsing, enrollment, and dashboards. Uses Axios to call API Gateway. Global state (auth, courses, UI) is managed via Redux Toolkit. |\
+| **API Gateway (Flask)** | Central entry point routing requests to the correct microservice. Handles JWT verification, request validation, and rate limiting. |\
+| **Auth Service** | Manages user registration, login, JWT token creation, password hashing, and MySQL persistence. |\
+| **Course Service** | Handles course creation, content management, and enrollment logic. Uses PostgreSQL for relational course data. |\
+| **Review Service** | Stores and retrieves course reviews, star ratings, and feedback. |\
+| **Analytics Service** | Collects metrics from services via Prometheus, visualized using Grafana dashboards. |\
+| **Message Queue (Kafka/RabbitMQ)** | Decouples services for events like \'93user enrolled\'94 or \'93course updated.\'94 |\
+| **CI/CD** | GitHub Actions automates builds, Docker image pushes, and AWS Elastic Beanstalk/Kubernetes deployment. |\
+\
+---\
+\
+## \uc0\u55358 \u56809  Data Flow & Service Communication\
+\
+1. **Frontend** sends HTTP requests (via Axios) \uc0\u8594  **API Gateway**\
+2. **API Gateway** authenticates user via JWT \uc0\u8594  routes to specific service  \
+3. Services communicate via **REST APIs** or **message queue events**\
+4. Each service maintains its own **database**:\
+   - Auth \uc0\u8594  MySQL  \
+   - Course \uc0\u8594  PostgreSQL  \
+   - Review \uc0\u8594  PostgreSQL  \
+5. Analytics service subscribes to message queue for event data and aggregates logs.\
+\
+---\
+\
+## \uc0\u55358 \u56800  State Management\
+\
+| Layer | State Type | Storage |\
+|--------|-------------|----------|\
+| **Frontend (React)** | UI + Auth + Course Data | Redux Store / Local Storage |\
+| **API Gateway** | Stateless (JWT validation only) | N/A |\
+| **Auth Service** | Persistent user sessions | MySQL |\
+| **Course Service** | Course data, enrollments | PostgreSQL |\
+| **Review Service** | Review records | PostgreSQL |\
+| **Analytics Service** | Derived metrics | Prometheus DB |\
+\
+---\
+\
+## \uc0\u9729 \u65039  Deployment Pipeline\
+\
+**GitHub Actions \uc0\u8594  Docker \u8594  AWS (ECS / Elastic Beanstalk)**  \
+\
+1. Push to `main` triggers CI/CD pipeline.  \
+2. Each service builds a Docker image.  \
+3. Images are pushed to **AWS ECR**.  \
+4. Containers deployed via **AWS ECS/Kubernetes**.  \
+5. Logs and metrics sent to **CloudWatch + Prometheus**.  \
+\
+---\
+\
+## \uc0\u55357 \u56589  Observability\
+\
+| Tool | Purpose |\
+|------|----------|\
+| **Prometheus** | Collects service metrics (response time, uptime) |\
+| **Grafana** | Visualizes API health, user activity, and errors |\
+| **Flask Logging + ELK Stack** | Centralized logs from all services |\
+\
+---\
+\
+## \uc0\u55358 \u56809  Tech Stack Summary\
+\
+| Layer | Technology |\
+|--------|-------------|\
+| **Frontend** | React, Redux Toolkit, TailwindCSS |\
+| **Backend** | Flask (Python Microservices) |\
+| **Databases** | MySQL (Auth), PostgreSQL (Courses & Reviews) |\
+| **Messaging** | RabbitMQ / Kafka |\
+| **API Gateway** | Flask REST Gateway |\
+| **CI/CD** | GitHub Actions, Docker, AWS ECS |\
+| **Monitoring** | Prometheus, Grafana, ELK Stack |\
+\
+---\
+\
+}
