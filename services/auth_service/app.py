@@ -3,11 +3,36 @@ import bcrypt
 import jwt
 import os
 from datetime import datetime, timedelta
+from functools import wraps
 from database import SessionLocal
 from models.user import User
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'dev-secret-key-change-in-production')
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        
+        if not token:
+            return jsonify({"error": "Token is missing"}), 401
+        
+        # Remove 'Bearer ' prefix if present
+        if token.startswith('Bearer '):
+            token = token[7:]
+        
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user_id = data['user_id']
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token has expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+        
+        return f(current_user_id, *args, **kwargs)
+    
+    return decorated
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -91,6 +116,28 @@ def login():
                 "email": user.email,
                 "name": user.name
             }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+@token_required
+def get_user(current_user_id, user_id):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        return jsonify({
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "created_at": user.created_at.isoformat() if user.created_at else None
         }), 200
         
     except Exception as e:
