@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+import bcrypt
 from database import SessionLocal
 from models.user import User
 
@@ -22,10 +23,15 @@ def register():
         if existing_user:
             return jsonify({"error": "User already exists"}), 409
         
-        # Create new user (no hashing yet - will add in T2.03)
+        # Hash password with bcrypt
+        password_bytes = data['password'].encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password_bytes, salt)
+        
+        # Create new user
         new_user = User(
             email=data['email'],
-            password_hash=data['password'],  # Storing plaintext for now
+            password_hash=hashed_password.decode('utf-8'),
             name=data.get('name', '')
         )
         
