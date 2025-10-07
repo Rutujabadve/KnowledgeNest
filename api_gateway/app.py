@@ -1,9 +1,35 @@
 from flask import Flask, jsonify, request
 import os
 import requests
+import jwt
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'dev-secret-key-change-in-production')
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        
+        if not token:
+            return jsonify({"error": "Token is missing"}), 401
+        
+        # Remove 'Bearer ' prefix if present
+        if token.startswith('Bearer '):
+            token = token[7:]
+        
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            request.user_id = data['user_id']
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token has expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+        
+        return f(*args, **kwargs)
+    
+    return decorated
 
 # Service URLs
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://localhost:5001')
@@ -56,11 +82,16 @@ def courses():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
+@token_required
 def enroll(course_id):
     try:
+        # Add user_id from JWT to request body
+        data = request.get_json() or {}
+        data['user_id'] = request.user_id
+        
         response = requests.post(
             f'{COURSE_SERVICE_URL}/courses/{course_id}/enroll',
-            json=request.get_json(),
+            json=data,
             headers={'Content-Type': 'application/json'}
         )
         return jsonify(response.json()), response.status_code
@@ -69,11 +100,16 @@ def enroll(course_id):
 
 # Review routes - proxy to Review Service
 @app.route('/api/courses/<int:course_id>/reviews', methods=['POST'])
+@token_required
 def create_review(course_id):
     try:
+        # Add user_id from JWT to request body
+        data = request.get_json() or {}
+        data['user_id'] = request.user_id
+        
         response = requests.post(
             f'{REVIEW_SERVICE_URL}/courses/{course_id}/reviews',
-            json=request.get_json(),
+            json=data,
             headers={'Content-Type': 'application/json'}
         )
         return jsonify(response.json()), response.status_code
