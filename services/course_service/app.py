@@ -41,5 +41,26 @@ def create_course():
     finally:
         db.close()
 
+@app.route('/courses', methods=['GET'])
+def list_courses():
+    db = SessionLocal()
+    try:
+        courses = db.query(Course).all()
+        
+        courses_list = [{
+            "id": course.id,
+            "title": course.title,
+            "description": course.description,
+            "content_url": course.content_url,
+            "created_at": course.created_at.isoformat() if course.created_at else None
+        } for course in courses]
+        
+        return jsonify(courses_list), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002, debug=True)
