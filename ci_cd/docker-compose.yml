@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api_gateway:
+    build:
+      context: ../api_gateway
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+    depends_on:
+      - auth_service
+      - course_service
+      - review_service
+
+  # Auth Service
+  auth_service:
+    build:
+      context: ../services/auth_service
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=mysql://root:password@mysql:3306/knowledge_nest_auth
+    depends_on:
+      - mysql
+
+  # Course Service
+  course_service:
+    build:
+      context: ../services/course_service
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/knowledge_nest_courses
+    depends_on:
+      - postgres
+
+  # Review Service
+  review_service:
+    build:
+      context: ../services/review_service
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/knowledge_nest_courses
+    depends_on:
+      - postgres
+
+  # Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    depends_on:
+      - api_gateway
+
+  # MySQL Database (Auth)
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=knowledge_nest_auth
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../database/mysql:/docker-entrypoint-initdb.d
+
+  # PostgreSQL Database (Courses & Reviews)
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=knowledge_nest_courses
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/postgres:/docker-entrypoint-initdb.d
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=password
+
+volumes:
+  mysql_data:
+  postgres_data:
