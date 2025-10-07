@@ -1,9 +1,13 @@
 from flask import Flask, jsonify, request
 import bcrypt
+import jwt
+import os
+from datetime import datetime, timedelta
 from database import SessionLocal
 from models.user import User
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'dev-secret-key-change-in-production')
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -47,6 +51,49 @@ def register():
         
     except Exception as e:
         db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({"error": "Email and password required"}), 400
+    
+    db = SessionLocal()
+    try:
+        # Find user by email
+        user = db.query(User).filter(User.email == data['email']).first()
+        if not user:
+            return jsonify({"error": "Invalid credentials"}), 401
+        
+        # Verify password
+        password_bytes = data['password'].encode('utf-8')
+        stored_hash = user.password_hash.encode('utf-8')
+        
+        if not bcrypt.checkpw(password_bytes, stored_hash):
+            return jsonify({"error": "Invalid credentials"}), 401
+        
+        # Generate JWT token
+        payload = {
+            'user_id': user.id,
+            'email': user.email,
+            'exp': datetime.utcnow() + timedelta(hours=24)
+        }
+        token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+        
+        return jsonify({
+            "access_token": token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name
+            }
+        }), 200
+        
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
