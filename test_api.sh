@@ -3,7 +3,7 @@
 # KnowledgeNest API Test Script
 # This tests the complete flow through the API Gateway
 
-BASE_URL="http://localhost:5000"
+BASE_URL="http://localhost:8000"
 echo "🧪 Testing KnowledgeNest API Gateway"
 echo "===================================="
 

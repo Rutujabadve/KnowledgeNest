@@ -1,10 +1,8 @@
 -- PostgreSQL initialization script for Course and Review Services
-CREATE DATABASE knowledge_nest_courses;
-
-\c knowledge_nest_courses;
+-- Note: Database is created by docker-compose environment variable
 
 -- Courses table
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
@@ -13,7 +11,7 @@ CREATE TABLE courses (
 );
 
 -- Enrollments table
-CREATE TABLE enrollments (
+CREATE TABLE IF NOT EXISTS enrollments (
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL,
   course_id INT NOT NULL,
@@ -22,7 +20,7 @@ CREATE TABLE enrollments (
 );
 
 -- Reviews table
-CREATE TABLE reviews (
+CREATE TABLE IF NOT EXISTS reviews (
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL,
   course_id INT NOT NULL,
@@ -33,7 +31,7 @@ CREATE TABLE reviews (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_enrollments_user_id ON enrollments(user_id);
-CREATE INDEX idx_enrollments_course_id ON enrollments(course_id);
-CREATE INDEX idx_reviews_course_id ON reviews(course_id);
-CREATE INDEX idx_reviews_user_id ON reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_user_id ON enrollments(user_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_course_id ON reviews(course_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
