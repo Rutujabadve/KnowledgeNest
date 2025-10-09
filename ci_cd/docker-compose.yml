@@ -27,7 +27,7 @@ services:
       - "5001:5001"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=mysql://root:password@mysql:3306/knowledge_nest_auth
+      - DATABASE_URL=mysql+pymysql://root:password@mysql:3306/knowledge_nest_auth
     depends_on:
       - mysql
 
