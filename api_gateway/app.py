@@ -101,20 +101,40 @@ def enroll(course_id):
         return jsonify({"error": str(e)}), 500
 
 # Review routes - proxy to Review Service
-@app.route('/api/courses/<int:course_id>/reviews', methods=['POST'])
-@token_required
-def create_review(course_id):
+@app.route('/api/courses/<int:course_id>/reviews', methods=['GET', 'POST'])
+def reviews(course_id):
     try:
-        # Add user_id from JWT to request body
-        data = request.get_json() or {}
-        data['user_id'] = request.user_id
-        
-        response = requests.post(
-            f'{REVIEW_SERVICE_URL}/courses/{course_id}/reviews',
-            json=data,
-            headers={'Content-Type': 'application/json'}
-        )
-        return jsonify(response.json()), response.status_code
+        if request.method == 'GET':
+            # Get reviews - no auth required
+            response = requests.get(f'{REVIEW_SERVICE_URL}/courses/{course_id}/reviews')
+            return jsonify(response.json()), response.status_code
+        else:
+            # POST - Create review - requires auth
+            token = request.headers.get('Authorization')
+            if not token:
+                return jsonify({"error": "Token is missing"}), 401
+            
+            if token.startswith('Bearer '):
+                token = token[7:]
+            
+            try:
+                data_decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+                user_id = data_decoded['user_id']
+            except jwt.ExpiredSignatureError:
+                return jsonify({"error": "Token has expired"}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({"error": "Invalid token"}), 401
+            
+            # Add user_id from JWT to request body
+            data = request.get_json() or {}
+            data['user_id'] = user_id
+            
+            response = requests.post(
+                f'{REVIEW_SERVICE_URL}/courses/{course_id}/reviews',
+                json=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            return jsonify(response.json()), response.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

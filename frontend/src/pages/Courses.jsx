@@ -9,6 +9,8 @@ function Courses() {
   const [enrolling, setEnrolling] = useState(null)
   const [reviewForm, setReviewForm] = useState({ courseId: null, rating: 5, comment: '' })
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [reviews, setReviews] = useState({})
+  const [showReviews, setShowReviews] = useState({})
 
   const token = localStorage.getItem('kn_token')
 
@@ -69,6 +71,28 @@ function Courses() {
     setShowReviewForm(true)
   }
 
+  const fetchReviews = async (courseId) => {
+    try {
+      const response = await reviewAPI.getByCourse(courseId)
+      setReviews({ ...reviews, [courseId]: response.data })
+      setShowReviews({ ...showReviews, [courseId]: true })
+    } catch (err) {
+      console.error('Failed to load reviews', err)
+    }
+  }
+
+  const toggleReviews = (courseId) => {
+    if (showReviews[courseId]) {
+      setShowReviews({ ...showReviews, [courseId]: false })
+    } else {
+      if (!reviews[courseId]) {
+        fetchReviews(courseId)
+      } else {
+        setShowReviews({ ...showReviews, [courseId]: true })
+      }
+    }
+  }
+
   if (loading) return <div className="container"><p>Loading courses...</p></div>
   if (error) return <div className="container"><p className="error">{error}</p></div>
 
@@ -106,7 +130,34 @@ function Courses() {
                 >
                   Write Review
                 </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => toggleReviews(course.id)}
+                >
+                  {showReviews[course.id] ? 'Hide Reviews' : 'Show Reviews'}
+                </button>
               </div>
+              
+              {showReviews[course.id] && reviews[course.id] && (
+                <div className="reviews-section">
+                  <h4>Reviews ({reviews[course.id].length})</h4>
+                  {reviews[course.id].length === 0 ? (
+                    <p className="no-reviews">No reviews yet. Be the first to review!</p>
+                  ) : (
+                    reviews[course.id].map((review) => (
+                      <div key={review.id} className="review-item">
+                        <div className="review-header">
+                          <span className="review-rating">{'⭐'.repeat(review.rating)}</span>
+                          <span className="review-date">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="review-comment">{review.comment}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

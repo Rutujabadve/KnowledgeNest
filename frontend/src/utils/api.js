@@ -31,6 +31,7 @@ export const courseAPI = {
 
 export const reviewAPI = {
   create: (courseId, data) => api.post(`/api/courses/${courseId}/reviews`, data),
+  getByCourse: (courseId) => api.get(`/api/courses/${courseId}/reviews`),
 }
 
 export default api

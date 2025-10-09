@@ -99,3 +99,48 @@
 .modal-actions button {
   flex: 1;
 }
+
+/* Reviews section */
+.reviews-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.reviews-section h4 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.no-reviews {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.review-item {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.review-rating {
+  font-size: 18px;
+}
+
+.review-date {
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.review-comment {
+  color: #2c3e50;
+  line-height: 1.5;
+}

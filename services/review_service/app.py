@@ -58,5 +58,27 @@ def create_review(course_id):
     finally:
         db.close()
 
+@app.route('/courses/<int:course_id>/reviews', methods=['GET'])
+def get_reviews(course_id):
+    db = SessionLocal()
+    try:
+        reviews = db.query(Review).filter(Review.course_id == course_id).all()
+        
+        reviews_list = [{
+            "id": review.id,
+            "user_id": review.user_id,
+            "course_id": review.course_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat() if review.created_at else None
+        } for review in reviews]
+        
+        return jsonify(reviews_list), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003, debug=True)
