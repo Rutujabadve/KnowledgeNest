@@ -7,9 +7,12 @@ services:
       context: ../api_gateway
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "8000:8000"
     environment:
       - FLASK_ENV=development
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - COURSE_SERVICE_URL=http://course_service:5002
+      - REVIEW_SERVICE_URL=http://review_service:5003
     depends_on:
       - auth_service
       - course_service
@@ -62,7 +65,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:5000
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - api_gateway
 

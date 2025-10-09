@@ -1,4 +1,13 @@
-# Dockerfile placeholder for Course Service
+# Course Service Dockerfile
 FROM python:3.10-slim
+
 WORKDIR /app
-# TODO: Add requirements and application setup
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5002
+
+CMD ["python", "app.py"]
