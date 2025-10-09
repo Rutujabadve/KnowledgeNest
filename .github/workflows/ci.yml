@@ -121,7 +121,7 @@ jobs:
     
     - name: Test Docker Compose
       run: |
-        docker-compose -f ci_cd/docker-compose.yml config
+        docker compose -f ci_cd/docker-compose.yml config
 
   lint:
     name: Code Quality

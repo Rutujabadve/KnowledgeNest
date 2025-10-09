@@ -1,6 +1,6 @@
 # 🎓 KnowledgeNest
 
-[![CI/CD](https://github.com/YOUR_USERNAME/KnowledgeNest/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/KnowledgeNest/actions)
+[![CI/CD](https://github.com/Rutujabadve/KnowledgeNest/actions/workflows/ci.yml/badge.svg)](https://github.com/Rutujabadve/KnowledgeNest/actions)
 
 A production-ready microservices-based online learning platform built with Flask, React, MySQL, and PostgreSQL.
 
@@ -35,7 +35,7 @@ KnowledgeNest uses a microservices architecture with:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/KnowledgeNest.git
+git clone https://github.com/your_username/KnowledgeNest.git
 cd KnowledgeNest
 
 # Start all services with Docker
@@ -180,13 +180,9 @@ KnowledgeNest/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License.
-
 ## 👥 Authors
 
-- Your Name - Initial work
+- Rutuja Badve - Initial work
 
 ## 🙏 Acknowledgments
 
