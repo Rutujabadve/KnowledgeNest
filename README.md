@@ -11,8 +11,9 @@ KnowledgeNest uses a microservices architecture with:
 - **Auth Service** - User authentication with JWT (Flask + MySQL, Port 5001)
 - **Course Service** - Course management and enrollment (Flask + PostgreSQL, Port 5002)
 - **Review Service** - Course reviews and ratings (Flask + PostgreSQL, Port 5003)
+- **Notification Service** - Event consumer for asynchronous notifications (RabbitMQ)
 - **Frontend** - React-based user interface (Port 3000)
-- **Message Queue** - RabbitMQ for event-driven communication
+- **Message Queue** - RabbitMQ for event-driven communication (Port 5672, Management UI: 15672)
 - **Databases** - MySQL (Auth), PostgreSQL (Courses & Reviews)
 
 ## 🚀 Tech Stack
@@ -149,6 +150,7 @@ cp .env.example .env
 Key variables:
 - `JWT_SECRET` - Secret key for JWT tokens
 - `DATABASE_URL` - Database connection strings
+- `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASS` - RabbitMQ connection
 - Service URLs and ports
 
 ## 📁 Project Structure
@@ -157,9 +159,10 @@ Key variables:
 KnowledgeNest/
 ├── api_gateway/          # API Gateway service
 ├── services/
-│   ├── auth_service/     # Authentication service
-│   ├── course_service/   # Course management service
-│   └── review_service/   # Review service
+│   ├── auth_service/     # Authentication service (publishes user.registered events)
+│   ├── course_service/   # Course management service (publishes course.* events)
+│   ├── review_service/   # Review service (publishes review.created events)
+│   └── notification_service/  # Event consumer service
 ├── frontend/             # React frontend
 ├── database/
 │   ├── mysql/           # MySQL init scripts
@@ -171,6 +174,16 @@ KnowledgeNest/
 └── docs/                # Documentation
 
 ```
+
+## 🔄 Event-Driven Architecture
+
+KnowledgeNest implements an **event-driven architecture** using RabbitMQ:
+
+- **Event Publishers**: Auth, Course, and Review services publish events
+- **Event Consumer**: Notification service consumes and processes events
+- **Event Types**: `user.registered`, `course.created`, `course.enrolled`, `review.created`
+
+For detailed implementation guide, see [RABBITMQ_IMPLEMENTATION.md](./RABBITMQ_IMPLEMENTATION.md)
 
 ## 🤝 Contributing
 

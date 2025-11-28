@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
+from datetime import datetime
 from database import SessionLocal
 from models.review import Review
+from rabbitmq_client import rabbitmq_client
 
 app = Flask(__name__)
 
@@ -42,6 +44,24 @@ def create_review(course_id):
         db.add(new_review)
         db.commit()
         db.refresh(new_review)
+        
+        # Publish review created event to RabbitMQ
+        event_data = {
+            "event_type": "review.created",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "review_id": new_review.id,
+                "user_id": new_review.user_id,
+                "course_id": new_review.course_id,
+                "rating": new_review.rating,
+                "has_comment": bool(new_review.comment)
+            }
+        }
+        rabbitmq_client.publish_event(
+            exchange="knowledge_nest_events",
+            routing_key="review.created",
+            event_data=event_data
+        )
         
         return jsonify({
             "id": new_review.id,

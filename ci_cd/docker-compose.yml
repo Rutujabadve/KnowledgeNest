@@ -28,8 +28,13 @@ services:
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=mysql+pymysql://root:password@mysql:3306/knowledge_nest_auth
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PASS=password
     depends_on:
       - mysql
+      - rabbitmq
 
   # Course Service
   course_service:
@@ -41,8 +46,13 @@ services:
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PASS=password
     depends_on:
       - postgres
+      - rabbitmq
 
   # Review Service
   review_service:
@@ -54,8 +64,13 @@ services:
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PASS=password
     depends_on:
       - postgres
+      - rabbitmq
 
   # Frontend
   frontend:
@@ -94,6 +109,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
 
+  # Notification Service (Event Consumer)
+  notification_service:
+    build:
+      context: ../services/notification_service
+      dockerfile: Dockerfile
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=admin
+      - RABBITMQ_PASS=password
+    depends_on:
+      - rabbitmq
+
   # RabbitMQ Message Queue
   rabbitmq:
     image: rabbitmq:3-management
@@ -103,6 +131,11 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mysql_data:

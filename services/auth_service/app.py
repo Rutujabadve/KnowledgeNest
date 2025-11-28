@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from database import SessionLocal
 from models.user import User
+from rabbitmq_client import rabbitmq_client
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'dev-secret-key-change-in-production')
@@ -67,6 +68,22 @@ def register():
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        
+        # Publish user registration event to RabbitMQ
+        event_data = {
+            "event_type": "user.registered",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "user_id": new_user.id,
+                "email": new_user.email,
+                "name": new_user.name
+            }
+        }
+        rabbitmq_client.publish_event(
+            exchange="knowledge_nest_events",
+            routing_key="user.registered",
+            event_data=event_data
+        )
         
         return jsonify({
             "id": new_user.id,

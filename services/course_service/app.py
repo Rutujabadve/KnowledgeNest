@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, request
+from datetime import datetime
 from database import SessionLocal
 from models.course import Course
 from models.enrollment import Enrollment
+from rabbitmq_client import rabbitmq_client
 
 app = Flask(__name__)
 
@@ -27,6 +29,22 @@ def create_course():
         db.add(new_course)
         db.commit()
         db.refresh(new_course)
+        
+        # Publish course created event to RabbitMQ
+        event_data = {
+            "event_type": "course.created",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "course_id": new_course.id,
+                "title": new_course.title,
+                "description": new_course.description
+            }
+        }
+        rabbitmq_client.publish_event(
+            exchange="knowledge_nest_events",
+            routing_key="course.created",
+            event_data=event_data
+        )
         
         return jsonify({
             "id": new_course.id,
@@ -95,6 +113,23 @@ def enroll_in_course(course_id):
         db.add(new_enrollment)
         db.commit()
         db.refresh(new_enrollment)
+        
+        # Publish enrollment event to RabbitMQ
+        event_data = {
+            "event_type": "course.enrolled",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "enrollment_id": new_enrollment.id,
+                "user_id": new_enrollment.user_id,
+                "course_id": new_enrollment.course_id,
+                "course_title": course.title
+            }
+        }
+        rabbitmq_client.publish_event(
+            exchange="knowledge_nest_events",
+            routing_key="course.enrolled",
+            event_data=event_data
+        )
         
         return jsonify({
             "id": new_enrollment.id,
