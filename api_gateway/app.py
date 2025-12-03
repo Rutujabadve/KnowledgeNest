@@ -83,7 +83,19 @@ def courses():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
+@app.route('/api/enrollments', methods=['GET'])
+@token_required
+def get_enrollments():
+    try:
+        response = requests.get(
+            f'{COURSE_SERVICE_URL}/enrollments?user_id={request.user_id}',
+            headers={'Content-Type': 'application/json'}
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/courses/<int:course_id>/enroll', methods=['POST', 'DELETE'])
 @token_required
 def enroll(course_id):
     try:
@@ -91,11 +103,20 @@ def enroll(course_id):
         data = request.get_json() or {}
         data['user_id'] = request.user_id
         
-        response = requests.post(
-            f'{COURSE_SERVICE_URL}/courses/{course_id}/enroll',
-            json=data,
-            headers={'Content-Type': 'application/json'}
-        )
+        headers = {'Content-Type': 'application/json'}
+        
+        if request.method == 'POST':
+            response = requests.post(
+                f'{COURSE_SERVICE_URL}/courses/{course_id}/enroll',
+                json=data,
+                headers=headers
+            )
+        else:  # DELETE
+            response = requests.delete(
+                f'{COURSE_SERVICE_URL}/courses/{course_id}/enroll',
+                json=data,
+                headers=headers
+            )
         return jsonify(response.json()), response.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 500

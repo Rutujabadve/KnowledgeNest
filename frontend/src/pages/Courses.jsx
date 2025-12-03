@@ -1,209 +1,315 @@
-import { useState, useEffect } from 'react'
-import { courseAPI, reviewAPI } from '../utils/api'
-import './Courses.css'
+import { useState, useEffect } from "react";
+import { courseAPI, reviewAPI } from "../utils/api";
+import "./Courses.css";
 
 function Courses() {
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [enrolling, setEnrolling] = useState(null)
-  const [reviewForm, setReviewForm] = useState({ courseId: null, rating: 5, comment: '' })
-  const [showReviewForm, setShowReviewForm] = useState(false)
-  const [reviews, setReviews] = useState({})
-  const [showReviews, setShowReviews] = useState({})
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [createForm, setCreateForm] = useState({ title: '', description: '', content_url: '' })
-  const [creating, setCreating] = useState(false)
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [enrolling, setEnrolling] = useState(null);
+  const [unenrolling, setUnenrolling] = useState(null);
+  const [enrolledCourses, setEnrolledCourses] = useState(new Set());
+  const [reviewForm, setReviewForm] = useState({
+    courseId: null,
+    rating: 5,
+    comment: "",
+  });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviews, setReviews] = useState({});
+  const [showReviews, setShowReviews] = useState({});
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    title: "",
+    description: "",
+    content_url: "",
+  });
+  const [creating, setCreating] = useState(false);
 
-  const token = localStorage.getItem('kn_token')
+  const token = localStorage.getItem("kn_token");
 
   useEffect(() => {
-    fetchCourses()
-  }, [])
+    fetchCourses();
+    if (token) {
+      fetchEnrollments();
+    }
+  }, [token]);
 
   const fetchCourses = async () => {
     try {
-      const response = await courseAPI.getAll()
-      setCourses(response.data)
+      const response = await courseAPI.getAll();
+      setCourses(response.data);
     } catch (err) {
-      setError('Failed to load courses')
+      setError("Failed to load courses");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const fetchEnrollments = async () => {
+    try {
+      const response = await courseAPI.getEnrollments();
+      const enrolledIds = new Set(response.data.map((e) => e.course_id));
+      setEnrolledCourses(enrolledIds);
+    } catch (err) {
+      console.error("Failed to load enrollments", err);
+    }
+  };
 
   const handleEnroll = async (courseId) => {
     if (!token) {
-      alert('Please login to enroll')
-      return
+      alert("Please login to enroll");
+      return;
     }
 
-    setEnrolling(courseId)
+    setEnrolling(courseId);
     try {
-      await courseAPI.enroll(courseId)
-      alert('Successfully enrolled!')
+      await courseAPI.enroll(courseId);
+      alert("Successfully enrolled!");
+      // Update enrolled courses
+      setEnrolledCourses((prev) => new Set([...prev, courseId]));
     } catch (err) {
-      alert(err.response?.data?.error || 'Enrollment failed')
+      alert(err.response?.data?.error || "Enrollment failed");
     } finally {
-      setEnrolling(null)
+      setEnrolling(null);
     }
-  }
+  };
+
+  const handleUnenroll = async (courseId) => {
+    if (!token) {
+      alert("Please login");
+      return;
+    }
+
+    if (
+      !window.confirm("Are you sure you want to unenroll from this course?")
+    ) {
+      return;
+    }
+
+    setUnenrolling(courseId);
+    try {
+      await courseAPI.unenroll(courseId);
+      alert("Successfully unenrolled!");
+      // Remove from enrolled courses
+      setEnrolledCourses((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(courseId);
+        return newSet;
+      });
+    } catch (err) {
+      alert(err.response?.data?.error || "Unenrollment failed");
+    } finally {
+      setUnenrolling(null);
+    }
+  };
+
+  const isEnrolled = (courseId) => {
+    return enrolledCourses.has(courseId);
+  };
 
   const handleReviewSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!token) {
-      alert('Please login to submit a review')
-      return
+      alert("Please login to submit a review");
+      return;
     }
 
     try {
       await reviewAPI.create(reviewForm.courseId, {
         rating: reviewForm.rating,
         comment: reviewForm.comment,
-      })
-      alert('Review submitted successfully!')
-      setShowReviewForm(false)
-      setReviewForm({ courseId: null, rating: 5, comment: '' })
+      });
+      alert("Review submitted successfully!");
+      setShowReviewForm(false);
+      setReviewForm({ courseId: null, rating: 5, comment: "" });
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to submit review')
+      alert(err.response?.data?.error || "Failed to submit review");
     }
-  }
+  };
 
   const openReviewForm = (courseId) => {
-    setReviewForm({ ...reviewForm, courseId })
-    setShowReviewForm(true)
-  }
+    setReviewForm({ ...reviewForm, courseId });
+    setShowReviewForm(true);
+  };
 
   const fetchReviews = async (courseId) => {
     try {
-      const response = await reviewAPI.getByCourse(courseId)
-      setReviews({ ...reviews, [courseId]: response.data })
-      setShowReviews({ ...showReviews, [courseId]: true })
+      const response = await reviewAPI.getByCourse(courseId);
+      setReviews({ ...reviews, [courseId]: response.data });
+      setShowReviews({ ...showReviews, [courseId]: true });
     } catch (err) {
-      console.error('Failed to load reviews', err)
+      console.error("Failed to load reviews", err);
     }
-  }
+  };
 
   const toggleReviews = (courseId) => {
     if (showReviews[courseId]) {
-      setShowReviews({ ...showReviews, [courseId]: false })
+      setShowReviews({ ...showReviews, [courseId]: false });
     } else {
       if (!reviews[courseId]) {
-        fetchReviews(courseId)
+        fetchReviews(courseId);
       } else {
-        setShowReviews({ ...showReviews, [courseId]: true })
+        setShowReviews({ ...showReviews, [courseId]: true });
       }
     }
-  }
+  };
 
   const handleCreateCourse = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!token) {
-      alert('Please login to create a course')
-      return
+      alert("Please login to create a course");
+      return;
     }
 
     if (!createForm.title.trim()) {
-      alert('Course title is required')
-      return
+      alert("Course title is required");
+      return;
     }
 
-    setCreating(true)
+    setCreating(true);
     try {
       await courseAPI.create({
         title: createForm.title,
         description: createForm.description,
         content_url: createForm.content_url,
-      })
-      alert('Course created successfully!')
-      setShowCreateForm(false)
-      setCreateForm({ title: '', description: '', content_url: '' })
-      fetchCourses() // Refresh the course list
+      });
+      alert("Course created successfully!");
+      setShowCreateForm(false);
+      setCreateForm({ title: "", description: "", content_url: "" });
+      fetchCourses(); // Refresh the course list
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create course')
+      alert(err.response?.data?.error || "Failed to create course");
     } finally {
-      setCreating(false)
+      setCreating(false);
     }
-  }
+  };
 
-  if (loading) return <div className="container"><p>Loading courses...</p></div>
-  if (error) return <div className="container"><p className="error">{error}</p></div>
+  if (loading)
+    return (
+      <div className="container">
+        <p>Loading courses...</p>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="container">
+        <p className="error">{error}</p>
+      </div>
+    );
 
   return (
     <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
         <h1>Available Courses</h1>
         {token && (
           <button
             className="btn btn-primary"
             onClick={() => setShowCreateForm(true)}
-            style={{ marginTop: '0' }}
+            style={{ marginTop: "0" }}
           >
             + Create Course
           </button>
         )}
       </div>
-      
+
       {courses.length === 0 ? (
         <p>No courses available yet.</p>
       ) : (
         <div className="courses-grid">
-          {courses.map((course) => (
-            <div key={course.id} className="course-card">
-              <h3>{course.title}</h3>
-              <p>{course.description}</p>
-              {course.content_url && (
-                <p className="content-url">
-                  <a href={course.content_url} target="_blank" rel="noopener noreferrer">
-                    View Content
-                  </a>
-                </p>
-              )}
-              <div className="course-actions">
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleEnroll(course.id)}
-                  disabled={enrolling === course.id || !token}
-                >
-                  {enrolling === course.id ? 'Enrolling...' : 'Enroll'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => openReviewForm(course.id)}
-                  disabled={!token}
-                >
-                  Write Review
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => toggleReviews(course.id)}
-                >
-                  {showReviews[course.id] ? 'Hide Reviews' : 'Show Reviews'}
-                </button>
-              </div>
-              
-              {showReviews[course.id] && reviews[course.id] && (
-                <div className="reviews-section">
-                  <h4>Reviews ({reviews[course.id].length})</h4>
-                  {reviews[course.id].length === 0 ? (
-                    <p className="no-reviews">No reviews yet. Be the first to review!</p>
+          {courses.map((course) => {
+            const enrolled = isEnrolled(course.id);
+            return (
+              <div
+                key={course.id}
+                className={`course-card ${enrolled ? "enrolled" : ""}`}
+              >
+                {enrolled && (
+                  <div className="enrolled-badge">
+                    <span>✓ Enrolled</span>
+                  </div>
+                )}
+                <h3>{course.title}</h3>
+                <p>{course.description}</p>
+                {course.content_url && (
+                  <p className="content-url">
+                    <a
+                      href={course.content_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View Content
+                    </a>
+                  </p>
+                )}
+                <div className="course-actions">
+                  {enrolled ? (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => handleUnenroll(course.id)}
+                      disabled={unenrolling === course.id || !token}
+                    >
+                      {unenrolling === course.id
+                        ? "Unenrolling..."
+                        : "Unenroll"}
+                    </button>
                   ) : (
-                    reviews[course.id].map((review) => (
-                      <div key={review.id} className="review-item">
-                        <div className="review-header">
-                          <span className="review-rating">{'⭐'.repeat(review.rating)}</span>
-                          <span className="review-date">
-                            {new Date(review.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="review-comment">{review.comment}</p>
-                      </div>
-                    ))
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleEnroll(course.id)}
+                      disabled={enrolling === course.id || !token}
+                    >
+                      {enrolling === course.id ? "Enrolling..." : "Enroll"}
+                    </button>
                   )}
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => openReviewForm(course.id)}
+                    disabled={!token}
+                  >
+                    Write Review
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => toggleReviews(course.id)}
+                  >
+                    {showReviews[course.id] ? "Hide Reviews" : "Show Reviews"}
+                  </button>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {showReviews[course.id] && reviews[course.id] && (
+                  <div className="reviews-section">
+                    <h4>Reviews ({reviews[course.id].length})</h4>
+                    {reviews[course.id].length === 0 ? (
+                      <p className="no-reviews">
+                        No reviews yet. Be the first to review!
+                      </p>
+                    ) : (
+                      reviews[course.id].map((review) => (
+                        <div key={review.id} className="review-item">
+                          <div className="review-header">
+                            <span className="review-rating">
+                              {"⭐".repeat(review.rating)}
+                            </span>
+                            <span className="review-date">
+                              {new Date(review.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="review-comment">{review.comment}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -217,7 +323,9 @@ function Courses() {
                 <input
                   type="text"
                   value={createForm.title}
-                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, title: e.target.value })
+                  }
                   placeholder="Enter course title"
                   required
                 />
@@ -226,7 +334,12 @@ function Courses() {
                 <label>Description</label>
                 <textarea
                   value={createForm.description}
-                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      description: e.target.value,
+                    })
+                  }
                   rows="4"
                   placeholder="Enter course description..."
                 />
@@ -236,20 +349,33 @@ function Courses() {
                 <input
                   type="url"
                   value={createForm.content_url}
-                  onChange={(e) => setCreateForm({ ...createForm, content_url: e.target.value })}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      content_url: e.target.value,
+                    })
+                  }
                   placeholder="https://example.com/course-content"
                 />
               </div>
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Course'}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={creating}
+                >
+                  {creating ? "Creating..." : "Create Course"}
                 </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
-                    setShowCreateForm(false)
-                    setCreateForm({ title: '', description: '', content_url: '' })
+                    setShowCreateForm(false);
+                    setCreateForm({
+                      title: "",
+                      description: "",
+                      content_url: "",
+                    });
                   }}
                   disabled={creating}
                 >
@@ -270,7 +396,12 @@ function Courses() {
                 <label>Rating (1-5)</label>
                 <select
                   value={reviewForm.rating}
-                  onChange={(e) => setReviewForm({ ...reviewForm, rating: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setReviewForm({
+                      ...reviewForm,
+                      rating: parseInt(e.target.value),
+                    })
+                  }
                 >
                   <option value="5">5 - Excellent</option>
                   <option value="4">4 - Good</option>
@@ -283,13 +414,17 @@ function Courses() {
                 <label>Comment</label>
                 <textarea
                   value={reviewForm.comment}
-                  onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, comment: e.target.value })
+                  }
                   rows="4"
                   placeholder="Share your thoughts about this course..."
                 />
               </div>
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">Submit Review</button>
+                <button type="submit" className="btn btn-primary">
+                  Submit Review
+                </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -303,7 +438,7 @@ function Courses() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default Courses
+export default Courses;

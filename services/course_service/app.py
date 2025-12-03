@@ -81,6 +81,31 @@ def list_courses():
     finally:
         db.close()
 
+@app.route('/enrollments', methods=['GET'])
+def get_user_enrollments():
+    user_id = request.args.get('user_id', type=int)
+    
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+    
+    db = SessionLocal()
+    try:
+        enrollments = db.query(Enrollment).filter(Enrollment.user_id == user_id).all()
+        
+        enrollment_list = [{
+            "id": enrollment.id,
+            "user_id": enrollment.user_id,
+            "course_id": enrollment.course_id,
+            "enrolled_at": enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None
+        } for enrollment in enrollments]
+        
+        return jsonify(enrollment_list), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
 @app.route('/courses/<int:course_id>/enroll', methods=['POST'])
 def enroll_in_course(course_id):
     data = request.get_json()
@@ -137,6 +162,40 @@ def enroll_in_course(course_id):
             "course_id": new_enrollment.course_id,
             "enrolled_at": new_enrollment.enrolled_at.isoformat() if new_enrollment.enrolled_at else None
         }), 201
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/courses/<int:course_id>/enroll', methods=['DELETE'])
+def unenroll_from_course(course_id):
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+    
+    db = SessionLocal()
+    try:
+        # Check if enrollment exists
+        enrollment = db.query(Enrollment).filter(
+            Enrollment.user_id == user_id,
+            Enrollment.course_id == course_id
+        ).first()
+        
+        if not enrollment:
+            return jsonify({"error": "You are not enrolled in this course"}), 404
+        
+        # Delete enrollment
+        db.delete(enrollment)
+        db.commit()
+        
+        return jsonify({
+            "message": "Successfully unenrolled from course",
+            "course_id": course_id
+        }), 200
         
     except Exception as e:
         db.rollback()
