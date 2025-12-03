@@ -11,6 +11,9 @@ function Courses() {
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [reviews, setReviews] = useState({})
   const [showReviews, setShowReviews] = useState({})
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createForm, setCreateForm] = useState({ title: '', description: '', content_url: '' })
+  const [creating, setCreating] = useState(false)
 
   const token = localStorage.getItem('kn_token')
 
@@ -93,12 +96,53 @@ function Courses() {
     }
   }
 
+  const handleCreateCourse = async (e) => {
+    e.preventDefault()
+    if (!token) {
+      alert('Please login to create a course')
+      return
+    }
+
+    if (!createForm.title.trim()) {
+      alert('Course title is required')
+      return
+    }
+
+    setCreating(true)
+    try {
+      await courseAPI.create({
+        title: createForm.title,
+        description: createForm.description,
+        content_url: createForm.content_url,
+      })
+      alert('Course created successfully!')
+      setShowCreateForm(false)
+      setCreateForm({ title: '', description: '', content_url: '' })
+      fetchCourses() // Refresh the course list
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to create course')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   if (loading) return <div className="container"><p>Loading courses...</p></div>
   if (error) return <div className="container"><p className="error">{error}</p></div>
 
   return (
     <div className="container">
-      <h1>Available Courses</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1>Available Courses</h1>
+        {token && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreateForm(true)}
+            style={{ marginTop: '0' }}
+          >
+            + Create Course
+          </button>
+        )}
+      </div>
       
       {courses.length === 0 ? (
         <p>No courses available yet.</p>
@@ -160,6 +204,60 @@ function Courses() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {showCreateForm && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Create New Course</h2>
+            <form onSubmit={handleCreateCourse}>
+              <div className="form-group">
+                <label>Course Title *</label>
+                <input
+                  type="text"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  placeholder="Enter course title"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  rows="4"
+                  placeholder="Enter course description..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Content URL (Optional)</label>
+                <input
+                  type="url"
+                  value={createForm.content_url}
+                  onChange={(e) => setCreateForm({ ...createForm, content_url: e.target.value })}
+                  placeholder="https://example.com/course-content"
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Course'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setCreateForm({ title: '', description: '', content_url: '' })
+                  }}
+                  disabled={creating}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
