@@ -174,9 +174,9 @@ services:
           memory: 32M
     restart: unless-stopped
 
-  # RabbitMQ Message Queue (Memory Optimized - Minimal Config)
+  # RabbitMQ Message Queue (with Management Console)
   rabbitmq:
-    image: rabbitmq:3-alpine
+    image: rabbitmq:3-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
