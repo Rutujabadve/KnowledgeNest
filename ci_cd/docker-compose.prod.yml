@@ -1,0 +1,154 @@
+version: "3.8"
+
+services:
+  # API Gateway
+  api_gateway:
+    build:
+      context: ../api_gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - FLASK_ENV=production
+      - AUTH_SERVICE_URL=http://auth_service:5001
+      - COURSE_SERVICE_URL=http://course_service:5002
+      - REVIEW_SERVICE_URL=http://review_service:5003
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - auth_service
+      - course_service
+      - review_service
+    restart: unless-stopped
+
+  # Auth Service
+  auth_service:
+    build:
+      context: ../services/auth_service
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/knowledge_nest_auth
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - mysql
+      - rabbitmq
+    restart: unless-stopped
+
+  # Course Service
+  course_service:
+    build:
+      context: ../services/course_service
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: unless-stopped
+
+  # Review Service
+  review_service:
+    build:
+      context: ../services/review_service
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - api_gateway
+    restart: unless-stopped
+
+  # MySQL Database (Auth)
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=knowledge_nest_auth
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../database/mysql:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  # PostgreSQL Database (Courses & Reviews)
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=knowledge_nest_courses
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/postgres:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  # Notification Service (Event Consumer)
+  notification_service:
+    build:
+      context: ../services/notification_service
+      dockerfile: Dockerfile
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  postgres_data:
