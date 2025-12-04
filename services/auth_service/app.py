@@ -79,11 +79,16 @@ def register():
                 "name": new_user.name
             }
         }
-        rabbitmq_client.publish_event(
-            exchange="knowledge_nest_events",
-            routing_key="user.registered",
-            event_data=event_data
-        )
+        try:
+            result = rabbitmq_client.publish_event(
+                exchange="knowledge_nest_events",
+                routing_key="user.registered",
+                event_data=event_data
+            )
+            if not result:
+                print(f"WARNING: Failed to publish user.registered event for user {new_user.id}")
+        except Exception as e:
+            print(f"ERROR: Exception publishing user.registered event: {str(e)}")
         
         return jsonify({
             "id": new_user.id,

@@ -40,11 +40,16 @@ def create_course():
                 "description": new_course.description
             }
         }
-        rabbitmq_client.publish_event(
-            exchange="knowledge_nest_events",
-            routing_key="course.created",
-            event_data=event_data
-        )
+        try:
+            result = rabbitmq_client.publish_event(
+                exchange="knowledge_nest_events",
+                routing_key="course.created",
+                event_data=event_data
+            )
+            if not result:
+                print(f"WARNING: Failed to publish course.created event for course {new_course.id}")
+        except Exception as e:
+            print(f"ERROR: Exception publishing course.created event: {str(e)}")
         
         return jsonify({
             "id": new_course.id,
@@ -150,11 +155,16 @@ def enroll_in_course(course_id):
                 "course_title": course.title
             }
         }
-        rabbitmq_client.publish_event(
-            exchange="knowledge_nest_events",
-            routing_key="course.enrolled",
-            event_data=event_data
-        )
+        try:
+            result = rabbitmq_client.publish_event(
+                exchange="knowledge_nest_events",
+                routing_key="course.enrolled",
+                event_data=event_data
+            )
+            if not result:
+                print(f"WARNING: Failed to publish course.enrolled event for enrollment {new_enrollment.id}")
+        except Exception as e:
+            print(f"ERROR: Exception publishing course.enrolled event: {str(e)}")
         
         return jsonify({
             "id": new_enrollment.id,

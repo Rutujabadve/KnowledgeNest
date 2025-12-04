@@ -57,11 +57,16 @@ def create_review(course_id):
                 "has_comment": bool(new_review.comment)
             }
         }
-        rabbitmq_client.publish_event(
-            exchange="knowledge_nest_events",
-            routing_key="review.created",
-            event_data=event_data
-        )
+        try:
+            result = rabbitmq_client.publish_event(
+                exchange="knowledge_nest_events",
+                routing_key="review.created",
+                event_data=event_data
+            )
+            if not result:
+                print(f"WARNING: Failed to publish review.created event for review {new_review.id}")
+        except Exception as e:
+            print(f"ERROR: Exception publishing review.created event: {str(e)}")
         
         return jsonify({
             "id": new_review.id,
