@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # API Gateway
@@ -29,13 +29,13 @@ services:
     environment:
       - FLASK_ENV=development
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - DATABASE_URL=mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-password}@mysql:3306/knowledge_nest_auth
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
     depends_on:
-      - mysql
+      - postgres
       - rabbitmq
 
   # Course Service
@@ -47,7 +47,7 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
@@ -65,7 +65,7 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
@@ -86,19 +86,7 @@ services:
     depends_on:
       - api_gateway
 
-  # MySQL Database (Auth)
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
-      - MYSQL_DATABASE=knowledge_nest_auth
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ../database/mysql:/docker-entrypoint-initdb.d
-
-  # PostgreSQL Database (Courses & Reviews)
+  # PostgreSQL Database (All Services)
   postgres:
     image: postgres:15
     ports:
@@ -106,7 +94,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_DB=knowledge_nest_courses
+      - POSTGRES_DB=knowledge_nest
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
@@ -140,5 +128,4 @@ services:
       retries: 5
 
 volumes:
-  mysql_data:
   postgres_data:

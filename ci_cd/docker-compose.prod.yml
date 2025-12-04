@@ -18,6 +18,12 @@ services:
       - auth_service
       - course_service
       - review_service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     restart: unless-stopped
 
   # Auth Service
@@ -29,15 +35,21 @@ services:
       - "5001:5001"
     environment:
       - FLASK_ENV=production
-      - DATABASE_URL=mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/knowledge_nest_auth
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
-      - mysql
+      - postgres
       - rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     restart: unless-stopped
 
   # Course Service
@@ -49,7 +61,7 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=production
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest_courses
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
@@ -57,6 +69,12 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     restart: unless-stopped
 
   # Review Service
@@ -68,7 +86,7 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=production
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest_courses
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_nest
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
@@ -76,6 +94,12 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     restart: unless-stopped
 
   # Frontend
@@ -89,34 +113,46 @@ services:
       - VITE_API_URL=${VITE_API_URL}
     depends_on:
       - api_gateway
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
     restart: unless-stopped
 
-  # MySQL Database (Auth)
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=knowledge_nest_auth
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ../database/mysql:/docker-entrypoint-initdb.d
-    restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
-
-  # PostgreSQL Database (Courses & Reviews)
+  # PostgreSQL Database (All Services - Optimized for 1GB RAM)
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=knowledge_nest_courses
+      - POSTGRES_DB=knowledge_nest
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c effective_cache_size=128MB
+      -c maintenance_work_mem=32MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=2GB
     restart: unless-stopped
 
   # Notification Service (Event Consumer)
@@ -131,17 +167,30 @@ services:
       - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
     depends_on:
       - rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
     restart: unless-stopped
 
-  # RabbitMQ Message Queue
+  # RabbitMQ Message Queue (Memory Optimized)
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+      - RABBITMQ_VM_MEMORY_HIGH_WATERMARK=256MiB
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -150,5 +199,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  mysql_data:
   postgres_data:
