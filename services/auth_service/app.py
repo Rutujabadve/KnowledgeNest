@@ -2,11 +2,16 @@ from flask import Flask, jsonify, request
 import bcrypt
 import jwt
 import os
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from database import SessionLocal
 from models.user import User
 from rabbitmq_client import rabbitmq_client
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'dev-secret-key-change-in-production')
@@ -41,7 +46,9 @@ def health():
 
 @app.route('/register', methods=['POST'])
 def register():
+    logger.info("=== REGISTER REQUEST RECEIVED ===")
     data = request.get_json()
+    logger.info(f"Register data: email={data.get('email') if data else 'None'}")
     
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"error": "Email and password required"}), 400
@@ -80,15 +87,18 @@ def register():
             }
         }
         try:
+            logger.info(f"Attempting to publish user.registered event for user {new_user.id}")
             result = rabbitmq_client.publish_event(
                 exchange="knowledge_nest_events",
                 routing_key="user.registered",
                 event_data=event_data
             )
-            if not result:
-                print(f"WARNING: Failed to publish user.registered event for user {new_user.id}")
+            if result:
+                logger.info(f"✅ SUCCESS: Published user.registered event for user {new_user.id}")
+            else:
+                logger.warning(f"❌ FAILED: Failed to publish user.registered event for user {new_user.id}")
         except Exception as e:
-            print(f"ERROR: Exception publishing user.registered event: {str(e)}")
+            logger.error(f"❌ EXCEPTION: Exception publishing user.registered event: {str(e)}")
         
         return jsonify({
             "id": new_user.id,

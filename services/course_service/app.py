@@ -1,9 +1,14 @@
 from flask import Flask, jsonify, request
+import logging
 from datetime import datetime
 from database import SessionLocal
 from models.course import Course
 from models.enrollment import Enrollment
 from rabbitmq_client import rabbitmq_client
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -113,7 +118,9 @@ def get_user_enrollments():
 
 @app.route('/courses/<int:course_id>/enroll', methods=['POST'])
 def enroll_in_course(course_id):
+    logger.info(f"=== ENROLL REQUEST RECEIVED: course_id={course_id} ===")
     data = request.get_json()
+    logger.info(f"Enroll data: user_id={data.get('user_id') if data else 'None'}")
     
     if not data or not data.get('user_id'):
         return jsonify({"error": "User ID is required"}), 400
@@ -156,15 +163,18 @@ def enroll_in_course(course_id):
             }
         }
         try:
+            logger.info(f"Attempting to publish course.enrolled event for enrollment {new_enrollment.id}")
             result = rabbitmq_client.publish_event(
                 exchange="knowledge_nest_events",
                 routing_key="course.enrolled",
                 event_data=event_data
             )
-            if not result:
-                print(f"WARNING: Failed to publish course.enrolled event for enrollment {new_enrollment.id}")
+            if result:
+                logger.info(f"✅ SUCCESS: Published course.enrolled event for enrollment {new_enrollment.id}")
+            else:
+                logger.warning(f"❌ FAILED: Failed to publish course.enrolled event for enrollment {new_enrollment.id}")
         except Exception as e:
-            print(f"ERROR: Exception publishing course.enrolled event: {str(e)}")
+            logger.error(f"❌ EXCEPTION: Exception publishing course.enrolled event: {str(e)}")
         
         return jsonify({
             "id": new_enrollment.id,
