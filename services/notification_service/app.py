@@ -28,31 +28,43 @@ class NotificationService:
         self.channel = None
         
     def connect(self):
-        """Establish connection to RabbitMQ"""
-        try:
-            credentials = pika.PlainCredentials(self.username, self.password)
-            parameters = pika.ConnectionParameters(
-                host=self.host,
-                port=self.port,
-                credentials=credentials,
-                heartbeat=600,
-                blocked_connection_timeout=300
-            )
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
-            
-            # Declare exchange
-            self.channel.exchange_declare(
-                exchange=self.exchange,
-                exchange_type='topic',
-                durable=True
-            )
-            
-            logger.info(f"Connected to RabbitMQ at {self.host}:{self.port}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
-            return False
+        """Establish connection to RabbitMQ with retry logic"""
+        max_retries = 10
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                credentials = pika.PlainCredentials(self.username, self.password)
+                parameters = pika.ConnectionParameters(
+                    host=self.host,
+                    port=self.port,
+                    credentials=credentials,
+                    heartbeat=600,
+                    blocked_connection_timeout=300,
+                    connection_attempts=3,
+                    retry_delay=2
+                )
+                self.connection = pika.BlockingConnection(parameters)
+                self.channel = self.connection.channel()
+                
+                # Declare exchange
+                self.channel.exchange_declare(
+                    exchange=self.exchange,
+                    exchange_type='topic',
+                    durable=True
+                )
+                
+                logger.info(f"Connected to RabbitMQ at {self.host}:{self.port}")
+                return True
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Failed to connect to RabbitMQ (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to RabbitMQ after {max_retries} attempts: {str(e)}")
+                    return False
+        return False
     
     def setup_queues(self):
         """Setup queues and bindings for different event types"""
@@ -152,8 +164,12 @@ class NotificationService:
     
     def start_consuming(self):
         """Start consuming events"""
+        logger.info("Starting Notification Service...")
+        logger.info(f"Connecting to RabbitMQ at {self.host}:{self.port}")
+        
         if not self.connect():
             logger.error("Failed to connect to RabbitMQ. Exiting.")
+            time.sleep(5)  # Wait before exit to avoid rapid restart loops
             return
         
         queue_name = self.setup_queues()
