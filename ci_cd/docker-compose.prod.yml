@@ -174,29 +174,28 @@ services:
           memory: 32M
     restart: unless-stopped
 
-  # RabbitMQ Message Queue (Memory Optimized)
+  # RabbitMQ Message Queue (Memory Optimized - Minimal Config)
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
-      - RABBITMQ_VM_MEMORY_HIGH_WATERMARK=0.4
-      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_VM_MEMORY_HIGH_WATERMARK=0.3
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 200M
         reservations:
-          memory: 128M
+          memory: 100M
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping || exit 1"]
-      interval: 15s
+      interval: 20s
       timeout: 10s
-      retries: 15
-      start_period: 60s
+      retries: 20
+      start_period: 90s
     restart: unless-stopped
 
 volumes:
