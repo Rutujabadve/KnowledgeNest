@@ -8,8 +8,14 @@ import os
 import logging
 from typing import Dict, Any
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+# Also print to stdout so it shows in docker logs
+import sys
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 class RabbitMQClient:
     """RabbitMQ client for publishing events"""
