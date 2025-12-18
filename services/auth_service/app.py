@@ -3,6 +3,7 @@ import bcrypt
 import jwt
 import os
 import logging
+import atexit
 from datetime import datetime, timedelta
 from functools import wraps
 from database import SessionLocal
@@ -177,5 +178,31 @@ def get_user(current_user_id, user_id):
     finally:
         db.close()
 
+def setup_rabbitmq():
+    """Initialize RabbitMQ connection and setup required queues"""
+    try:
+        # Declare the exchange if it doesn't exist
+        rabbitmq_client.declare_exchange("knowledge_nest_events", "topic")
+        
+        # Declare and bind the notification queue
+        rabbitmq_client.declare_queue(
+            queue_name="notification_queue",
+            exchange="knowledge_nest_events",
+            routing_key="user.*"  # Listen to all user events
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to setup RabbitMQ: {str(e)}")
+        return False
+
+@atexit.register
+def cleanup():
+    """Clean up resources on exit"""
+    rabbitmq_client.close()
+
 if __name__ == '__main__':
+    if setup_rabbitmq():
+        logger.info("RabbitMQ setup completed successfully")
+    else:
+        logger.warning("Failed to setup RabbitMQ, continuing without it")
     app.run(host='0.0.0.0', port=5001, debug=True)

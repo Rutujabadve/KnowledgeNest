@@ -103,6 +103,30 @@ class RabbitMQClient:
             logger.error(f"Failed to publish event: {str(e)}")
             return False
     
+    def declare_queue(self, queue_name: str, exchange: str, routing_key: str = '#'):
+        """Declare a queue and bind it to the exchange with the given routing key"""
+        if not self.ensure_connection():
+            return False
+        try:
+            # Declare the queue as durable
+            self.channel.queue_declare(
+                queue=queue_name,
+                durable=True
+            )
+            
+            # Bind the queue to the exchange with the routing key
+            self.channel.queue_bind(
+                exchange=exchange,
+                queue=queue_name,
+                routing_key=routing_key
+            )
+            
+            logger.info(f"Queue '{queue_name}' declared and bound to exchange '{exchange}' with routing key '{routing_key}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to declare/bind queue: {str(e)}")
+            return False
+
     def close(self):
         """Close RabbitMQ connection"""
         try:

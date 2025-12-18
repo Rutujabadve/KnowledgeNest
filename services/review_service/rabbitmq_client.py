@@ -109,3 +109,4 @@ class RabbitMQClient:
 # Global instance
 rabbitmq_client = RabbitMQClient()
 
+

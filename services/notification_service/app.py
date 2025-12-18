@@ -68,27 +68,33 @@ class NotificationService:
     
     def setup_queues(self):
         """Setup queues and bindings for different event types"""
-        # Queue for all events
-        queue_name = 'notification_queue'
-        self.channel.queue_declare(queue=queue_name, durable=True)
-        
-        # Bind to different routing keys
-        routing_keys = [
-            'user.registered',
-            'course.created',
-            'course.enrolled',
-            'review.created'
-        ]
-        
-        for routing_key in routing_keys:
-            self.channel.queue_bind(
-                exchange=self.exchange,
-                queue=queue_name,
-                routing_key=routing_key
+        try:
+            # Declare the queue as durable
+            self.channel.queue_declare(
+                queue='notification_queue',
+                durable=True
             )
-            logger.info(f"Bound queue '{queue_name}' to routing key '{routing_key}'")
-        
-        return queue_name
+            
+            # Bind to different routing keys
+            routing_keys = [
+                'user.*',           # All user events
+                'course.*',         # All course events
+                'review.*'          # All review events
+            ]
+            
+            for routing_key in routing_keys:
+                self.channel.queue_bind(
+                    exchange=self.exchange,
+                    queue='notification_queue',
+                    routing_key=routing_key
+                )
+                logger.info(f"Bound queue 'notification_queue' to routing key '{routing_key}'")
+            
+            return 'notification_queue'
+            
+        except Exception as e:
+            logger.error(f"Failed to setup queues: {str(e)}")
+            raise
     
     def process_event(self, ch, method, properties, body):
         """Process incoming events"""
@@ -98,28 +104,36 @@ class NotificationService:
             data = event_data.get('data', {})
             timestamp = event_data.get('timestamp', datetime.utcnow().isoformat())
             
-            logger.info(f"Received event: {event_type} at {timestamp}")
+            logger.info(f"📩 Received event: {event_type} at {timestamp}")
+            logger.debug(f"Event data: {event_data}")
             
             # Process different event types
             if event_type == 'user.registered':
+                logger.info(f"👤 Processing user registration for user_id: {data.get('user_id')}")
                 self.handle_user_registered(data)
             elif event_type == 'course.created':
+                logger.info(f"📚 Processing new course: {data.get('title')} (ID: {data.get('course_id')})")
                 self.handle_course_created(data)
             elif event_type == 'course.enrolled':
+                logger.info(f"🎓 Processing enrollment: user {data.get('user_id')} in course {data.get('course_id')}")
                 self.handle_course_enrolled(data)
             elif event_type == 'review.created':
+                logger.info(f"⭐ Processing review: {data.get('review_id')} for course {data.get('course_id')}")
                 self.handle_review_created(data)
             else:
-                logger.warning(f"Unknown event type: {event_type}")
+                logger.warning(f"⚠️ Unknown event type: {event_type}")
             
-            # Acknowledge message
+            # Acknowledge message only after successful processing
             ch.basic_ack(delivery_tag=method.delivery_tag)
+            logger.info(f"✅ Successfully processed {event_type} event")
             
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse event JSON: {str(e)}")
+            logger.error(f"❌ Failed to parse event JSON: {str(e)}")
+            # Reject the message without requeuing (to avoid poison messages)
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         except Exception as e:
-            logger.error(f"Error processing event: {str(e)}")
+            logger.error(f"❌ Error processing event: {str(e)}")
+            # Reject the message and requeue it for retry
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
     
     def handle_user_registered(self, data):
@@ -165,34 +179,45 @@ class NotificationService:
     def start_consuming(self):
         """Start consuming events"""
         logger.info("Starting Notification Service...")
-        logger.info(f"Connecting to RabbitMQ at {self.host}:{self.port}")
         
         if not self.connect():
             logger.error("Failed to connect to RabbitMQ. Exiting.")
             time.sleep(5)  # Wait before exit to avoid rapid restart loops
             return
-        
-        queue_name = self.setup_queues()
-        
-        # Set QoS to process one message at a time
-        self.channel.basic_qos(prefetch_count=1)
-        
-        # Start consuming
-        self.channel.basic_consume(
-            queue=queue_name,
-            on_message_callback=self.process_event
-        )
-        
-        logger.info("Notification Service started. Waiting for events...")
-        logger.info("Press CTRL+C to exit")
-        
+
         try:
-            self.channel.start_consuming()
-        except KeyboardInterrupt:
-            logger.info("Stopping notification service...")
-            self.channel.stop_consuming()
-            self.connection.close()
-            logger.info("Notification service stopped")
+            # Setup queues and get the queue name
+            queue_name = self.setup_queues()
+            
+            # Set QoS to process one message at a time
+            self.channel.basic_qos(prefetch_count=1)
+            
+            # Start consuming with manual acknowledgment
+            self.channel.basic_consume(
+                queue=queue_name,
+                on_message_callback=self.process_event,
+                auto_ack=False
+            )
+            
+            logger.info("Notification Service started. Waiting for events...")
+            logger.info("Press CTRL+C to exit")
+            
+            try:
+                self.channel.start_consuming()
+            except KeyboardInterrupt:
+                logger.info("Stopping notification service...")
+                self.channel.stop_consuming()
+                if self.connection and self.connection.is_open:
+                    self.connection.close()
+                logger.info("Notification service stopped")
+                
+        except Exception as e:
+            logger.error(f"Error in consumer: {str(e)}")
+            if self.connection and self.connection.is_open:
+                self.connection.close()
+            # Implement a retry mechanism
+            time.sleep(5)
+            self.start_consuming()
 
 if __name__ == '__main__':
     service = NotificationService()
