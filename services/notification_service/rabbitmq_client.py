@@ -186,12 +186,27 @@ class RabbitMQClient:
     @retry_on_failure(max_retries=3, initial_delay=0.5)
     def declare_queue(self, queue_name: str, durable: bool = True, 
                      exclusive: bool = False, auto_delete: bool = False, 
-                     arguments: Optional[Dict] = None) -> str:
-        """Declare a queue with retry logic"""
+                     arguments: Optional[Dict] = None, exchange: str = None, 
+                     routing_key: str = None) -> str:
+        """Declare a queue with retry logic and optional exchange binding
+        
+        Args:
+            queue_name: Name of the queue to declare
+            durable: Whether the queue should survive broker restarts
+            exclusive: Whether this queue can only be used by this connection
+            auto_delete: Whether to delete the queue when no longer in use
+            arguments: Additional queue arguments
+            exchange: Optional exchange to bind the queue to
+            routing_key: Optional routing key for the binding
+            
+        Returns:
+            The name of the declared queue
+        """
         if not self.ensure_connection():
             raise RuntimeError("Cannot declare queue: No connection to RabbitMQ")
             
         try:
+            # Declare the queue
             result = self.channel.queue_declare(
                 queue=queue_name,
                 durable=durable,
@@ -199,6 +214,15 @@ class RabbitMQClient:
                 auto_delete=auto_delete,
                 arguments=arguments
             )
+            
+            # If an exchange is provided, bind the queue to it
+            if exchange and routing_key:
+                self.channel.queue_bind(
+                    exchange=exchange,
+                    queue=queue_name,
+                    routing_key=routing_key
+                )
+                logger.info(f"Queue '{queue_name}' bound to exchange '{exchange}' with routing key '{routing_key}'")
             self._queue_name = result.method.queue
             logger.info(f"Queue '{self._queue_name}' declared")
             return self._queue_name
