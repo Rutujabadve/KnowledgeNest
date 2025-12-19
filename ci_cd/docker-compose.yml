@@ -29,18 +29,21 @@ services:
     environment:
       - FLASK_ENV=development
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest
-      - SQLALCHEMY_POOL_SIZE=10
-      - SQLALCHEMY_MAX_OVERFLOW=20
-      - SQLALCHEMY_POOL_TIMEOUT=30
-      - SQLALCHEMY_POOL_RECYCLE=1800
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
+      - SQLALCHEMY_POOL_SIZE=20
+      - SQLALCHEMY_MAX_OVERFLOW=40
+      - SQLALCHEMY_POOL_TIMEOUT=60
+      - SQLALCHEMY_POOL_RECYCLE=3600
+      - SQLALCHEMY_ECHO=False
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   # Course Service
   course_service:
@@ -51,18 +54,21 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest
-      - SQLALCHEMY_POOL_SIZE=10
-      - SQLALCHEMY_MAX_OVERFLOW=20
-      - SQLALCHEMY_POOL_TIMEOUT=30
-      - SQLALCHEMY_POOL_RECYCLE=1800
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
+      - SQLALCHEMY_POOL_SIZE=20
+      - SQLALCHEMY_MAX_OVERFLOW=40
+      - SQLALCHEMY_POOL_TIMEOUT=60
+      - SQLALCHEMY_POOL_RECYCLE=3600
+      - SQLALCHEMY_ECHO=False
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   # Review Service
   review_service:
@@ -73,18 +79,21 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest
-      - SQLALCHEMY_POOL_SIZE=10
-      - SQLALCHEMY_MAX_OVERFLOW=20
-      - SQLALCHEMY_POOL_TIMEOUT=30
-      - SQLALCHEMY_POOL_RECYCLE=1800
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
+      - SQLALCHEMY_POOL_SIZE=20
+      - SQLALCHEMY_MAX_OVERFLOW=40
+      - SQLALCHEMY_POOL_TIMEOUT=60
+      - SQLALCHEMY_POOL_RECYCLE=3600
+      - SQLALCHEMY_ECHO=False
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   # Frontend
   frontend:
@@ -101,10 +110,7 @@ services:
   # PostgreSQL Database (All Services)
   postgres:
     image: postgres:15
-    ports:
-      - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
       - POSTGRES_DB=knowledge_nest_courses
       - POSTGRES_INITDB_ARGS=--data-checksums
@@ -112,11 +118,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d knowledge_nest_courses"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 30s
     restart: unless-stopped
 
     # Notification Service (Event Consumer)
@@ -129,21 +138,17 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
+      - RABBITMQ_VHOST=/
       - RABBITMQ_EXCHANGE=knowledge_nest_events
       - RABBITMQ_QUEUE=notification_queue
       - RABBITMQ_MAX_RETRIES=5
       - RABBITMQ_RETRY_DELAY=5
       - PYTHONUNBUFFERED=1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "python.*app.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+    # Health check removed as this is a worker process
     depends_on:
-      - rabbitmq
-        
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   # RabbitMQ Message Queue
   rabbitmq:
@@ -152,13 +157,18 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-admin}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-password}
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-password}
+      - RABBITMQ_DEFAULT_VHOST=/
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
 volumes:
   postgres_data:
+  rabbitmq_data:
