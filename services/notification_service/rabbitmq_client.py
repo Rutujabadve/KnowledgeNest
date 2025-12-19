@@ -47,11 +47,22 @@ def retry_on_failure(max_retries: int = 3, initial_delay: float = 1.0, max_delay
 class RabbitMQClient:
     """RabbitMQ client with automatic reconnection and retry logic for Notification Service"""
     
-    def __init__(self, max_retries: int = 5, initial_backoff: float = 1.0):
-        self.host = os.getenv('RABBITMQ_HOST', 'rabbitmq')
-        self.port = int(os.getenv('RABBITMQ_PORT', '5672'))
-        self.username = os.getenv('RABBITMQ_USER', 'admin')
-        self.password = os.getenv('RABBITMQ_PASS', 'password')
+    def __init__(self, host: str = None, port: int = None, username: str = None, password: str = None, 
+                 max_retries: int = 5, initial_backoff: float = 1.0):
+        """Initialize RabbitMQ client with connection parameters and retry settings.
+        
+        Args:
+            host: RabbitMQ server hostname or IP
+            port: RabbitMQ server port
+            username: RabbitMQ username
+            password: RabbitMQ password
+            max_retries: Maximum number of retry attempts
+            initial_backoff: Initial delay between retries in seconds
+        """
+        self.host = host or os.getenv('RABBITMQ_HOST', 'rabbitmq')
+        self.port = int(port) if port is not None else int(os.getenv('RABBITMQ_PORT', '5672'))
+        self.username = username or os.getenv('RABBITMQ_USER', 'admin')
+        self.password = password or os.getenv('RABBITMQ_PASS', 'password')
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
         self._connection = None
