@@ -99,18 +99,31 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
 
-  # Notification Service (Event Consumer)
+    # Notification Service (Event Consumer)
   notification_service:
     build:
       context: ../services/notification_service
       dockerfile: Dockerfile
     environment:
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
+      - RABBITMQ_EXCHANGE=knowledge_nest_events
+      - RABBITMQ_QUEUE=notification_queue
+      - RABBITMQ_MAX_RETRIES=5
+      - RABBITMQ_RETRY_DELAY=5
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "python.*app.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       - rabbitmq
+        
 
   # RabbitMQ Message Queue
   rabbitmq:
