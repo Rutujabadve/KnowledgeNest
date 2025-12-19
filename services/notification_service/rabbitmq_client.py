@@ -332,10 +332,33 @@ class RabbitMQClient:
             logger.error(f"Unexpected error processing message: {str(e)}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     
-    def start_consuming(self):
-        """Start consuming messages"""
-        if not self._consumer_tag:
-            raise RuntimeError("Consumer not set up, call setup_consumer first")
+    def start_consuming(self, queue_name: str = None, callback: Callable = None):
+        """Start consuming messages
+        
+        Args:
+            queue_name: Name of the queue to consume from
+            callback: Callback function to process messages
+        """
+        if queue_name:
+            # If queue_name is provided, set up a basic consumer
+            if not callback:
+                raise ValueError("Callback function is required when queue_name is provided")
+                
+            if not self.ensure_connection():
+                raise RuntimeError("Cannot start consuming: No connection to RabbitMQ")
+                
+            self._queue_name = queue_name
+            self._consumer_callback = callback
+            self._channel.basic_consume(
+                queue=self._queue_name,
+                on_message_callback=self._on_message,
+                auto_ack=False
+            )
+            logger.info(f"Started consuming from queue: {self._queue_name}")
+        
+        # If no queue_name is provided, use the existing consumer setup
+        elif not self._consumer_tag:
+            raise RuntimeError("Consumer not set up, call setup_consumer or provide queue_name and callback")
             
         self._consuming = True
         logger.info("Starting consumer...")

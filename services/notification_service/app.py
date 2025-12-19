@@ -90,9 +90,15 @@ class NotificationService:
             # Declare exchange
             self.rabbitmq.declare_exchange(self.exchange, 'topic')
             
-            # Setup consumer with all routing keys
+            # Declare the queue first
+            self.rabbitmq.declare_queue(
+                queue_name=self.queue_name,
+                durable=True
+            )
+            
+            # Bind the queue to the exchange with each routing key
             for routing_key in self.routing_keys:
-                self.rabbitmq.declare_queue(
+                self.rabbitmq.bind_queue(
                     queue_name=self.queue_name,
                     exchange=self.exchange,
                     routing_key=routing_key
@@ -156,10 +162,17 @@ class NotificationService:
                     raise RuntimeError("Failed to initialize RabbitMQ connection and queues")
                 
                 logger.info("🚀 Starting to consume messages...")
-                self.rabbitmq.start_consuming(
+                
+                # Set up the consumer with the queue and callback
+                self.rabbitmq.setup_consumer(
+                    exchange=self.exchange,
                     queue_name=self.queue_name,
+                    routing_keys=self.routing_keys,
                     callback=self.process_event
                 )
+                
+                # Start consuming messages
+                self.rabbitmq.start_consuming()
                 
             except KeyboardInterrupt:
                 logger.info("👋 Shutdown signal received. Stopping...")
