@@ -29,7 +29,7 @@ services:
     environment:
       - FLASK_ENV=development
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
@@ -47,7 +47,7 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
@@ -65,7 +65,7 @@ services:
       - "5003:5003"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
@@ -94,7 +94,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - POSTGRES_DB=knowledge_nest
+      - POSTGRES_DB=knowledge_nest_courses
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d

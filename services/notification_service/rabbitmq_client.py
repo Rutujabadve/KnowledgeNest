@@ -1,5 +1,5 @@
 """
-RabbitMQ Client with Retry Logic for Auth Service
+RabbitMQ Client with Retry Logic for Notification Service
 Handles connection, message publishing, and event broadcasting with automatic reconnection
 """
 import pika
@@ -8,7 +8,7 @@ import os
 import logging
 import time
 import functools
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, Union, List, Tuple
 
 # Configure logging
 logging.basicConfig(
@@ -45,7 +45,7 @@ def retry_on_failure(max_retries: int = 3, initial_delay: float = 1.0, max_delay
     return decorator
 
 class RabbitMQClient:
-    """RabbitMQ client with automatic reconnection and retry logic"""
+    """RabbitMQ client with automatic reconnection and retry logic for Notification Service"""
     
     def __init__(self, max_retries: int = 5, initial_backoff: float = 1.0):
         self.host = os.getenv('RABBITMQ_HOST', 'rabbitmq')
@@ -57,6 +57,10 @@ class RabbitMQClient:
         self._connection = None
         self._channel = None
         self._is_connected = False
+        self._consuming = False
+        self._consumer_tag = None
+        self._queue_name = None
+        self._consumer_callback = None
     
     @property
     def connection(self):
@@ -169,6 +173,169 @@ class RabbitMQClient:
             raise
     
     @retry_on_failure(max_retries=3, initial_delay=0.5)
+    def declare_queue(self, queue_name: str, durable: bool = True, 
+                     exclusive: bool = False, auto_delete: bool = False, 
+                     arguments: Optional[Dict] = None) -> str:
+        """Declare a queue with retry logic"""
+        if not self.ensure_connection():
+            raise RuntimeError("Cannot declare queue: No connection to RabbitMQ")
+            
+        try:
+            result = self.channel.queue_declare(
+                queue=queue_name,
+                durable=durable,
+                exclusive=exclusive,
+                auto_delete=auto_delete,
+                arguments=arguments
+            )
+            self._queue_name = result.method.queue
+            logger.info(f"Queue '{self._queue_name}' declared")
+            return self._queue_name
+            
+        except pika.exceptions.ChannelClosedByBroker as e:
+            logger.error(f"Channel closed by broker while declaring queue: {str(e)}")
+            self._channel = None
+            raise
+            
+        except pika.exceptions.AMQPChannelError as e:
+            logger.error(f"Channel error while declaring queue: {str(e)}")
+            self._channel = None
+            raise
+            
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"Connection error while declaring queue: {str(e)}")
+            self._is_connected = False
+            self._connection = None
+            self._channel = None
+            raise
+    
+    @retry_on_failure(max_retries=3, initial_delay=0.5)
+    def bind_queue(self, queue_name: str, exchange: str, routing_key: str) -> bool:
+        """Bind a queue to an exchange with a routing key"""
+        if not self.ensure_connection():
+            raise RuntimeError("Cannot bind queue: No connection to RabbitMQ")
+            
+        try:
+            self.channel.queue_bind(
+                queue=queue_name,
+                exchange=exchange,
+                routing_key=routing_key
+            )
+            logger.info(f"Queue '{queue_name}' bound to exchange '{exchange}' with key '{routing_key}'")
+            return True
+            
+        except pika.exceptions.ChannelClosedByBroker as e:
+            logger.error(f"Channel closed by broker while binding queue: {str(e)}")
+            self._channel = None
+            raise
+            
+        except pika.exceptions.AMQPChannelError as e:
+            logger.error(f"Channel error while binding queue: {str(e)}")
+            self._channel = None
+            raise
+            
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"Connection error while binding queue: {str(e)}")
+            self._is_connected = False
+            self._connection = None
+            self._channel = None
+            raise
+    
+    def setup_consumer(self, exchange: str, queue_name: str, routing_keys: List[str], 
+                      callback: Callable, prefetch_count: int = 1) -> bool:
+        """Set up a consumer with the given callback"""
+        try:
+            # Declare exchange and queue
+            self.declare_exchange(exchange, 'topic')
+            self.declare_queue(queue_name, durable=True)
+            
+            # Bind queue to exchange with each routing key
+            for routing_key in routing_keys:
+                self.bind_queue(queue_name, exchange, routing_key)
+            
+            # Set QoS for fair dispatch
+            self.channel.basic_qos(prefetch_count=prefetch_count)
+            
+            # Set up consumer
+            self._consumer_callback = callback
+            self._consumer_tag = self.channel.basic_consume(
+                queue=queue_name,
+                on_message_callback=self._on_message,
+                auto_ack=False
+            )
+            
+            logger.info(f"Consumer set up on queue '{queue_name}' with routing keys: {routing_keys}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to set up consumer: {str(e)}")
+            return False
+    
+    def _on_message(self, channel, method, properties, body):
+        """Internal method to handle incoming messages"""
+        try:
+            # Parse message
+            try:
+                message = json.loads(body)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse message: {str(e)}")
+                channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                return
+            
+            # Process message with callback
+            if self._consumer_callback:
+                try:
+                    self._consumer_callback(channel, method, properties, message)
+                except Exception as e:
+                    logger.error(f"Error in consumer callback: {str(e)}")
+                    channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            else:
+                logger.warning("No consumer callback set, message will be rejected")
+                channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error processing message: {str(e)}")
+            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+    
+    def start_consuming(self):
+        """Start consuming messages"""
+        if not self._consumer_tag:
+            raise RuntimeError("Consumer not set up, call setup_consumer first")
+            
+        self._consuming = True
+        logger.info("Starting consumer...")
+        
+        try:
+            while self._consuming:
+                try:
+                    self.connection.process_data_events(time_limit=1)
+                except pika.exceptions.AMQPConnectionError as e:
+                    logger.error(f"Connection error while consuming: {str(e)}")
+                    if self._consuming and self.ensure_connection():
+                        # Re-setup consumer if connection was re-established
+                        self.setup_consumer(
+                            exchange='knowledge_nest_events',
+                            queue_name=self._queue_name,
+                            routing_keys=['user.*', 'course.*', 'review.*'],
+                            callback=self._consumer_callback
+                        )
+                    else:
+                        raise
+                except Exception as e:
+                    logger.error(f"Error while consuming: {str(e)}")
+                    time.sleep(5)  # Prevent tight loop on errors
+        except KeyboardInterrupt:
+            self.stop_consuming()
+    
+    def stop_consuming(self):
+        """Stop consuming messages"""
+        if self._consuming:
+            logger.info("Stopping consumer...")
+            self._consuming = False
+            if self.channel and self._consumer_tag:
+                self.channel.basic_cancel(self._consumer_tag)
+    
+    @retry_on_failure(max_retries=3, initial_delay=0.5)
     def publish_event(self, exchange: str, routing_key: str, event_data: Dict[Any, Any]) -> bool:
         """Publish an event to RabbitMQ with retry logic"""
         if not self.ensure_connection():
@@ -223,54 +390,9 @@ class RabbitMQClient:
             self._channel = None
             raise
     
-    @retry_on_failure(max_retries=3, initial_delay=0.5)
-    def declare_queue(self, queue_name: str, exchange: str, routing_key: str = '#') -> bool:
-        """Declare a queue and bind it to the exchange with the given routing key"""
-        if not self.ensure_connection():
-            raise RuntimeError("Cannot declare queue: No connection to RabbitMQ")
-            
-        try:
-            # Declare the queue as durable
-            self.channel.queue_declare(
-                queue=queue_name,
-                durable=True,
-                exclusive=False,
-                auto_delete=False,
-                arguments=None
-            )
-            
-            # Bind the queue to the exchange with the routing key
-            self.channel.queue_bind(
-                exchange=exchange,
-                queue=queue_name,
-                routing_key=routing_key
-            )
-            
-            logger.info(
-                f"Queue '{queue_name}' declared and bound to exchange "
-                f"'{exchange}' with routing key '{routing_key}'"
-            )
-            return True
-            
-        except pika.exceptions.ChannelClosedByBroker as e:
-            logger.error(f"Channel closed by broker while declaring queue: {str(e)}")
-            self._channel = None
-            raise
-            
-        except pika.exceptions.AMQPChannelError as e:
-            logger.error(f"Channel error while declaring queue: {str(e)}")
-            self._channel = None
-            raise
-            
-        except pika.exceptions.AMQPConnectionError as e:
-            logger.error(f"Connection error while declaring queue: {str(e)}")
-            self._is_connected = False
-            self._connection = None
-            self._channel = None
-            raise
-
     def close(self):
         """Close RabbitMQ connection"""
+        self.stop_consuming()
         self._is_connected = False
         try:
             if self._connection and not self._connection.is_closed:
@@ -287,4 +409,3 @@ rabbitmq_client = RabbitMQClient(
     max_retries=5,
     initial_backoff=1.0
 )
-

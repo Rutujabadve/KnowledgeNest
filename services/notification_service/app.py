@@ -2,13 +2,16 @@
 Notification Service - Consumes events from RabbitMQ
 Demonstrates event-driven architecture by processing events and logging notifications
 """
-import pika
 import json
-import os
 import logging
+import os
 import time
 from datetime import datetime
 
+# Import the RabbitMQ client
+from rabbitmq_client import RabbitMQClient
+
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -19,87 +22,40 @@ class NotificationService:
     """Service that consumes events from RabbitMQ and processes them"""
     
     def __init__(self):
-        self.host = os.getenv('RABBITMQ_HOST', 'localhost')
-        self.port = int(os.getenv('RABBITMQ_PORT', '5672'))
-        self.username = os.getenv('RABBITMQ_USER', 'admin')
-        self.password = os.getenv('RABBITMQ_PASS', 'password')
         self.exchange = 'knowledge_nest_events'
-        self.connection = None
-        self.channel = None
+        self.queue_name = 'notification_queue'
+        self.routing_keys = ['user.*', 'course.*', 'review.*']
+        self.rabbitmq = RabbitMQClient()
         
     def connect(self):
         """Establish connection to RabbitMQ with retry logic"""
-        max_retries = 10
-        retry_delay = 5
-        
-        for attempt in range(max_retries):
-            try:
-                credentials = pika.PlainCredentials(self.username, self.password)
-                parameters = pika.ConnectionParameters(
-                    host=self.host,
-                    port=self.port,
-                    credentials=credentials,
-                    heartbeat=600,
-                    blocked_connection_timeout=300,
-                    connection_attempts=3,
-                    retry_delay=2
-                )
-                self.connection = pika.BlockingConnection(parameters)
-                self.channel = self.connection.channel()
-                
-                # Declare exchange
-                self.channel.exchange_declare(
-                    exchange=self.exchange,
-                    exchange_type='topic',
-                    durable=True
-                )
-                
-                logger.info(f"Connected to RabbitMQ at {self.host}:{self.port}")
-                return True
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Failed to connect to RabbitMQ (attempt {attempt + 1}/{max_retries}): {str(e)}")
-                    logger.info(f"Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
-                else:
-                    logger.error(f"Failed to connect to RabbitMQ after {max_retries} attempts: {str(e)}")
-                    return False
-        return False
+        try:
+            # The RabbitMQ client handles reconnection internally
+            return self.rabbitmq.ensure_connection()
+        except Exception as e:
+            logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
+            return False
     
     def setup_queues(self):
         """Setup queues and bindings for different event types"""
         try:
-            # Declare the queue as durable
-            self.channel.queue_declare(
-                queue='notification_queue',
-                durable=True
+            # Set up the consumer with the appropriate routing keys and callback
+            self.rabbitmq.setup_consumer(
+                exchange=self.exchange,
+                queue_name=self.queue_name,
+                routing_keys=self.routing_keys,
+                callback=self.process_event
             )
-            
-            # Bind to different routing keys
-            routing_keys = [
-                'user.*',           # All user events
-                'course.*',         # All course events
-                'review.*'          # All review events
-            ]
-            
-            for routing_key in routing_keys:
-                self.channel.queue_bind(
-                    exchange=self.exchange,
-                    queue='notification_queue',
-                    routing_key=routing_key
-                )
-                logger.info(f"Bound queue 'notification_queue' to routing key '{routing_key}'")
-            
-            return 'notification_queue'
+            return self.queue_name
             
         except Exception as e:
             logger.error(f"Failed to setup queues: {str(e)}")
             raise
     
-    def process_event(self, ch, method, properties, body):
+    def process_event(self, channel, method, properties, body):
         """Process incoming events"""
         try:
-            event_data = json.loads(body)
+            event_data = body if isinstance(body, dict) else json.loads(body)
             event_type = event_data.get('event_type', 'unknown')
             data = event_data.get('data', {})
             timestamp = event_data.get('timestamp', datetime.utcnow().isoformat())
@@ -124,17 +80,17 @@ class NotificationService:
                 logger.warning(f"⚠️ Unknown event type: {event_type}")
             
             # Acknowledge message only after successful processing
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
             logger.info(f"✅ Successfully processed {event_type} event")
             
         except json.JSONDecodeError as e:
             logger.error(f"❌ Failed to parse event JSON: {str(e)}")
             # Reject the message without requeuing (to avoid poison messages)
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         except Exception as e:
             logger.error(f"❌ Error processing event: {str(e)}")
             # Reject the message and requeue it for retry
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
     
     def handle_user_registered(self, data):
         """Handle user registration event"""
@@ -186,36 +142,22 @@ class NotificationService:
             return
 
         try:
-            # Setup queues and get the queue name
-            queue_name = self.setup_queues()
-            
-            # Set QoS to process one message at a time
-            self.channel.basic_qos(prefetch_count=1)
-            
-            # Start consuming with manual acknowledgment
-            self.channel.basic_consume(
-                queue=queue_name,
-                on_message_callback=self.process_event,
-                auto_ack=False
-            )
+            # Setup queues and bindings
+            self.setup_queues()
             
             logger.info("Notification Service started. Waiting for events...")
             logger.info("Press CTRL+C to exit")
             
-            try:
-                self.channel.start_consuming()
-            except KeyboardInterrupt:
-                logger.info("Stopping notification service...")
-                self.channel.stop_consuming()
-                if self.connection and self.connection.is_open:
-                    self.connection.close()
-                logger.info("Notification service stopped")
+            # Start consuming messages
+            self.rabbitmq.start_consuming()
                 
+        except KeyboardInterrupt:
+            logger.info("Stopping notification service...")
+            self.rabbitmq.stop_consuming()
+            logger.info("Notification service stopped")
         except Exception as e:
             logger.error(f"Error in consumer: {str(e)}")
-            if self.connection and self.connection.is_open:
-                self.connection.close()
-            # Implement a retry mechanism
+            # The RabbitMQ client handles reconnection internally
             time.sleep(5)
             self.start_consuming()
 
