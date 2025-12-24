@@ -35,15 +35,46 @@ function Courses() {
   }, [token]);
 
   const fetchCourses = async () => {
-    try {
-      const response = await courseAPI.getAll();
+  console.log('[Courses] Starting to fetch courses...');
+  try {
+    console.log('[Courses] Making API call to get all courses...');
+    const response = await courseAPI.getAll();
+    console.log('[Courses] Received response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data ? 'Data received' : 'No data'
+    });
+    
+    if (response.data) {
+      console.log(`[Courses] Successfully loaded ${response.data.length} courses`);
       setCourses(response.data);
-    } catch (err) {
-      setError("Failed to load courses");
-    } finally {
-      setLoading(false);
+    } else {
+      console.warn('[Courses] No courses data in response');
+      setError('No courses data received from server');
     }
-  };
+  } catch (err) {
+    console.error('[Courses] Error fetching courses:', {
+      name: err.name,
+      message: err.message,
+      response: err.response ? {
+        status: err.response.status,
+        statusText: err.response.statusText,
+        data: err.response.data
+      } : 'No response',
+      stack: err.stack
+    });
+
+    const message = err.response?.data?.message || 
+                  err.response?.data || 
+                  err.message || 
+                  "Failed to load courses";
+    
+    console.error('[Courses] Error message to show user:', message);
+    setError(message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchEnrollments = async () => {
     try {
