@@ -2,25 +2,51 @@
 
 [![CI/CD](https://github.com/Rutujabadve/KnowledgeNest/actions/workflows/ci.yml/badge.svg)](https://github.com/Rutujabadve/KnowledgeNest/actions)
 
-A production-ready microservices-based online learning platform built with Flask, React, MySQL, and PostgreSQL.
+A production-ready, event-driven microservices-based online learning platform built with Flask, React, PostgreSQL, and RabbitMQ for asynchronous communication between services.
 
-## 🏗️ Architecture
+## � Live Demo
 
-KnowledgeNest uses a microservices architecture with:
+The application is hosted on AWS EC2 and can be accessed at:
+- **Frontend**: http://100.26.196.47
+- **API Gateway**: http://100.26.196.47:8000
+
+## 📸 Screenshots
+
+### Homepage
+![Homepage](./screenshots/homepage.png)
+
+### Course Listing
+![Course Listing](./screenshots/courses.png)
+
+### Course Details
+![Course Details](./screenshots/course-details.png)
+
+### Course Review
+![User Dashboard](./screenshots/review.png)
+
+### RabbitMQ Dashboard
+![User Dashboard](./screenshots/dashboard.png)
+
+### RabbitMQ Events
+![User Dashboard](./screenshots/events.png)
+
+## ��️ Architecture
+
+The platform is built using a microservices architecture with the following components:
 - **API Gateway** - Central routing and authentication (Port 8000)
-- **Auth Service** - User authentication with JWT (Flask + MySQL, Port 5001)
+- **Auth Service** - User authentication with JWT (Flask + PostgreSQL, Port 5001)
 - **Course Service** - Course management and enrollment (Flask + PostgreSQL, Port 5002)
 - **Review Service** - Course reviews and ratings (Flask + PostgreSQL, Port 5003)
 - **Notification Service** - Event consumer for asynchronous notifications (RabbitMQ)
 - **Frontend** - React-based user interface (Port 3000)
 - **Message Queue** - RabbitMQ for event-driven communication (Port 5672, Management UI: 15672)
-- **Databases** - MySQL (Auth), PostgreSQL (Courses & Reviews)
+- **Database** - PostgreSQL (Auth, Courses & Reviews)
 
 ## 🚀 Tech Stack
 
 - **Backend**: Flask (Python 3.10)
 - **Frontend**: React 19, Vite, React Router, Axios
-- **Databases**: MySQL 8.0, PostgreSQL 15
+- **Database**: PostgreSQL 15
 - **Messaging**: RabbitMQ
 - **Containerization**: Docker, Docker Compose
 - **CI/CD**: GitHub Actions
@@ -165,7 +191,6 @@ KnowledgeNest/
 │   └── notification_service/  # Event consumer service
 ├── frontend/             # React frontend
 ├── database/
-│   ├── mysql/           # MySQL init scripts
 │   └── postgres/        # PostgreSQL schemas
 ├── ci_cd/
 │   └── docker-compose.yml
