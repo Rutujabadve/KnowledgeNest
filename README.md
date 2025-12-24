@@ -4,11 +4,10 @@
 
 A production-ready, event-driven microservices-based online learning platform built with Flask, React, PostgreSQL, and RabbitMQ for asynchronous communication between services.
 
-## � Live Demo
+## Live Demo
 
 The application is hosted on AWS EC2 and can be accessed at:
-- **Frontend**: http://100.26.196.47
-- **API Gateway**: http://100.26.196.47:8000
+- **Frontend**: http://100.26.196.47:3000
 
 ## 📸 Screenshots
 
@@ -30,7 +29,7 @@ The application is hosted on AWS EC2 and can be accessed at:
 ### RabbitMQ Events
 ![User Dashboard](./screenshots/events.png)
 
-## ��️ Architecture
+## Architecture
 
 The platform is built using a microservices architecture with the following components:
 - **API Gateway** - Central routing and authentication (Port 8000)
@@ -207,8 +206,6 @@ KnowledgeNest implements an **event-driven architecture** using RabbitMQ:
 - **Event Publishers**: Auth, Course, and Review services publish events
 - **Event Consumer**: Notification service consumes and processes events
 - **Event Types**: `user.registered`, `course.created`, `course.enrolled`, `review.created`
-
-For detailed implementation guide, see [RABBITMQ_IMPLEMENTATION.md](./RABBITMQ_IMPLEMENTATION.md)
 
 ## 🤝 Contributing
 
