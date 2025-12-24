@@ -9,11 +9,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - AUTH_SERVICE_URL=http://auth_service:5001
       - COURSE_SERVICE_URL=http://course_service:5002
       - REVIEW_SERVICE_URL=http://review_service:5003
+    networks:
+      - app-network
     depends_on:
       - auth_service
       - course_service
@@ -24,76 +26,55 @@ services:
     build:
       context: ../services/auth_service
       dockerfile: Dockerfile
-    ports:
-      - "5001:5001"
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
-      - SQLALCHEMY_POOL_SIZE=20
-      - SQLALCHEMY_MAX_OVERFLOW=40
-      - SQLALCHEMY_POOL_TIMEOUT=60
-      - SQLALCHEMY_POOL_RECYCLE=3600
-      - SQLALCHEMY_ECHO=False
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
+    networks:
+      - app-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - postgres
+      - rabbitmq
 
   # Course Service
   course_service:
     build:
       context: ../services/course_service
       dockerfile: Dockerfile
-    ports:
-      - "5002:5002"
     environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
-      - SQLALCHEMY_POOL_SIZE=20
-      - SQLALCHEMY_MAX_OVERFLOW=40
-      - SQLALCHEMY_POOL_TIMEOUT=60
-      - SQLALCHEMY_POOL_RECYCLE=3600
-      - SQLALCHEMY_ECHO=False
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
+    networks:
+      - app-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - postgres
+      - rabbitmq
 
   # Review Service
   review_service:
     build:
       context: ../services/review_service
       dockerfile: Dockerfile
-    ports:
-      - "5003:5003"
     environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses?connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5&application_name=knowledge_nest_courses&sslmode=disable
-      - SQLALCHEMY_POOL_SIZE=20
-      - SQLALCHEMY_MAX_OVERFLOW=40
-      - SQLALCHEMY_POOL_TIMEOUT=60
-      - SQLALCHEMY_POOL_RECYCLE=3600
-      - SQLALCHEMY_ECHO=False
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/knowledge_nest_courses
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
+    networks:
+      - app-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - postgres
+      - rabbitmq
 
   # Frontend
   frontend:
@@ -101,13 +82,15 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
     ports:
-      - "80:3000"
+      - "80:3000"  # Changed to port 80 for standard HTTP
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://100.26.196.47:8000}
+      - VITE_API_URL=http://100.26.196.47:8000  # Replace with your EC2 public IP
+    networks:
+      - app-network
     depends_on:
       - api_gateway
 
-  # PostgreSQL Database (All Services)
+  # PostgreSQL Database
   postgres:
     image: postgres:15
     environment:
@@ -118,8 +101,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../database/postgres:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d knowledge_nest_courses"]
       interval: 5s
@@ -127,8 +108,30 @@ services:
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - app-network
 
-    # Notification Service (Event Consumer)
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-password}
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "15672:15672"  # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app-network
+
+  # Notification Service
   notification_service:
     build:
       context: ../services/notification_service
@@ -138,36 +141,14 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-password}
-      - RABBITMQ_VHOST=/
-      - RABBITMQ_EXCHANGE=knowledge_nest_events
-      - RABBITMQ_QUEUE=notification_queue
-      - RABBITMQ_MAX_RETRIES=5
-      - RABBITMQ_RETRY_DELAY=5
-      - PYTHONUNBUFFERED=1
-    # Health check removed as this is a worker process
+    networks:
+      - app-network
     depends_on:
-      rabbitmq:
-        condition: service_healthy
-    restart: unless-stopped
+      - rabbitmq
 
-  # RabbitMQ Message Queue
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-password}
-      - RABBITMQ_DEFAULT_VHOST=/
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 30s
-      timeout: 30s
-      retries: 3
-      start_period: 30s
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:
